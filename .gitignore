@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.ipynb_checkpoints/
+*.pt
+*.pth
+logs/
+checkpoints/
+models/best_model.pt
+.DS_Store
+Thumbs.db
+.venv/
+env/
+*.egg-info/
+pip-wheel-metadata/
+*.log
+*.tmp
