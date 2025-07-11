@@ -14,3 +14,7 @@ env/
 pip-wheel-metadata/
 *.log
 *.tmp
+*.txt
+data/heatmaps
+runs/phase-cnn/*
+.idea/

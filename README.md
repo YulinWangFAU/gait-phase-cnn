@@ -25,7 +25,7 @@ python scripts/generate_heatmaps.py
 
 2. Train CNN:
 ```bash
-python scripts/train_cnn.py
+python scripts/train.py
 ```
 
 3. Evaluate:
