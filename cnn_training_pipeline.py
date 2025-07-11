@@ -13,15 +13,23 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from datasets.heatmap_dataset import HeatmapDataset
-from models.cnn_model import CNNModel
+# from models.cnn_model import CNNModel
 from utils.early_stopping import EarlyStopping
 from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
 import os
 from config import Config
+# === 1. 选择模型架构 ===
+USE_PAPER_MODEL = True  # ← 改成 False 就可以切换回旧模型
 
+if USE_PAPER_MODEL:
+    from models.cnn_model_paper import CNNModel
+else:
+    from models.cnn_model import CNNModel
 # === Setup ===
 os.makedirs(Config.CHECKPOINT_DIR, exist_ok=True)
-writer = SummaryWriter(log_dir=Config.TENSORBOARD_LOG_DIR)
+log_dir = os.path.join(Config.TENSORBOARD_LOG_DIR, f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+writer = SummaryWriter(log_dir=log_dir)
 
 # === Dataset ===
 dataset = HeatmapDataset(Config.LABEL_CSV_PATH)
