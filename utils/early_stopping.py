@@ -1,46 +1,38 @@
-# -*- coding: utf-8 -*-
-"""
-Created on 2025/6/30 23:45
-
-@author: Yulin Wang
-@email: yulin.wang@fau.de
-"""
-
-# utils/early_stopping.py
-
 import numpy as np
 import torch
 
 class EarlyStopping:
-    def __init__(self, patience=5, verbose=False, delta=0, path='checkpoint.pt'):
+    def __init__(self, patience=5, verbose=True, min_delta=0.0, mode='min', path='checkpoint.pt'):
         self.patience = patience
         self.verbose = verbose
+        self.min_delta = min_delta
+        self.mode = mode
         self.counter = 0
-        self.best_score = None
         self.early_stop = False
-        self.val_loss_min = np.inf
-        self.delta = delta
         self.path = path
 
-    def __call__(self, val_loss, model):
-        score = -val_loss
+        if self.mode == 'min':
+            self.best_score = np.inf
+            self.monitor_op = lambda current, best: current < best - self.min_delta
+        elif self.mode == 'max':
+            self.best_score = -np.inf
+            self.monitor_op = lambda current, best: current > best + self.min_delta
+        else:
+            raise ValueError("mode should be 'min' or 'max'")
 
-        if self.best_score is None:
-            self.best_score = score
-            self.save_checkpoint(val_loss, model)
-        elif score < self.best_score + self.delta:
+    def __call__(self, current_score, model):
+        if self.monitor_op(current_score, self.best_score):
+            if self.verbose:
+                print(f"✅ Metric improved ({self.best_score:.4f} → {current_score:.4f}). Saving model.")
+            self.best_score = current_score
+            self.save_checkpoint(model)
+            self.counter = 0
+        else:
             self.counter += 1
             if self.verbose:
-                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+                print(f"⏳ No improvement. Counter: {self.counter}/{self.patience}")
             if self.counter >= self.patience:
                 self.early_stop = True
-        else:
-            self.best_score = score
-            self.save_checkpoint(val_loss, model)
-            self.counter = 0
 
-    def save_checkpoint(self, val_loss, model):
-        if self.verbose:
-            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}). Saving model ...')
+    def save_checkpoint(self, model):
         torch.save(model.state_dict(), self.path)
-        self.val_loss_min = val_loss

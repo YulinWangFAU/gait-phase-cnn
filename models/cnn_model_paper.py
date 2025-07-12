@@ -10,9 +10,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class CNNModelPaper(nn.Module):
+class CNNModel(nn.Module):
     def __init__(self):
-        super(CNNModelPaper, self).__init__()
+        super(CNNModel, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)   # (B, 1, 256, 256) → (B, 32, 256, 256)
         self.bn1 = nn.BatchNorm2d(32)
         self.pool1 = nn.MaxPool2d(2)                              # → (B, 32, 128, 128)
