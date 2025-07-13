@@ -12,7 +12,7 @@ import os
 
 class Config:
     # Paths
-    LABEL_CSV_PATH = "data/labels.csv"
+    LABEL_CSV_PATH = "data/labels_win400_step200.csv"
     CHECKPOINT_DIR = "checkpoints"
     MODEL_SAVE_PATH = os.path.join(CHECKPOINT_DIR, "cnn_best.pt")
     TENSORBOARD_LOG_DIR = "runs/phase-cnn"
