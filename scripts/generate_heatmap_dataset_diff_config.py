@@ -16,14 +16,18 @@ from scipy.ndimage import gaussian_filter
 from matplotlib import pyplot as plt, cm
 
 # === Global Config ===
-DATA_DIR = "/Users/wangyulin/Time Series/629/gait-phase-cnn/data/raw"
+DATA_DIR = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data/raw"
+#DATA_DIR = "/Users/wangyulin/Time Series/629/gait-phase-cnn/data/raw"
 INDEX_FILES = ["index_ga.csv", "index_ju.csv", "index_si.csv"]
-BASE_OUTPUT_DIR = "/Users/wangyulin/Time Series/629/gait-phase-cnn/data"
+BASE_OUTPUT_DIR = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data"
+#BASE_OUTPUT_DIR = "/Users/wangyulin/Time Series/629/gait-phase-cnn/data"
 SIGNAL_TYPE = 'both'  # 'left', 'right', or 'both'
 FS = 100  # sampling frequency in Hz
 
 # === Sliding Window Configurations ===
 configs = [
+    {"win": 800, "step": 200},
+    {"win": 800, "step": 400},
     {"win": 200, "step": 100},
     {"win": 200, "step": 50},
     {"win": 400, "step": 200},

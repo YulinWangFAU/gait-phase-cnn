@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on 2025/6/30 20:05
-
-@author: Yulin Wang
-@email: yulin.wang@fau.de
-"""
 
 import os
 import numpy as np
