@@ -7,3 +7,4 @@ matplotlib
 seaborn
 opencv-python
 tqdm
+tensorboard
