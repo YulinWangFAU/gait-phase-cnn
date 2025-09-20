@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2025/7/14 10:22
+Created on 2025/7/14
 
 @author: Yulin Wang
 @email: yulin.wang@fau.de
 """
-# cnn_training_pipeline.py
+
 import os
 import csv
 import importlib
@@ -26,13 +26,13 @@ from utils.early_stopping import EarlyStopping
 os.makedirs(Config.CHECKPOINT_DIR, exist_ok=True)
 os.makedirs(Config.TENSORBOARD_LOG_DIR, exist_ok=True)
 
-# === 设置 TensorBoard 和 CSV 日志 ===
+# === 设置 TensorBoard 和 CSV 日志（只初始化一次） ===
 log_dir = Config.TENSORBOARD_LOG_DIR
 writer = SummaryWriter(log_dir=log_dir)
 log_csv_path = os.path.join(log_dir, "training_log.csv")
-with open(log_csv_path, mode='w', newline='') as f:
-    writer_csv = csv.writer(f)
-    writer_csv.writerow(['epoch', 'train_acc', 'val_acc', 'train_loss', 'val_loss', 'lr'])
+f_csv = open(log_csv_path, mode='w', newline='')
+writer_csv = csv.writer(f_csv)
+writer_csv.writerow(['epoch', 'train_acc', 'val_acc', 'train_loss', 'val_loss', 'lr'])
 
 # === 数据集准备 ===
 dataset = HeatmapDataset(Config.LABEL_CSV_PATH)
@@ -48,7 +48,7 @@ model_module = importlib.import_module(f"models.{Config.MODEL_NAME}")
 CNNModel = getattr(model_module, "CNNModel")
 model = CNNModel().to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
-# === 损失、优化器、调度器、EarlyStopping
+# === 损失函数、优化器、调度器、EarlyStopping
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE, weight_decay=Config.WEIGHT_DECAY)
@@ -87,29 +87,34 @@ for epoch in range(Config.EPOCHS):
 
     train_acc = train_correct / train_size
     val_acc = val_correct / val_size
+    train_loss_avg = train_loss / len(train_loader)
+    val_loss_avg = val_loss / len(val_loader)
+    current_lr = optimizer.param_groups[0]['lr']
 
-    # === 记录日志
+    # === TensorBoard 日志
     writer.add_scalars('Loss', {
-        'Train': train_loss / len(train_loader),
-        'Validation': val_loss / len(val_loader)
+        'Train': train_loss_avg,
+        'Validation': val_loss_avg
     }, epoch + 1)
     writer.add_scalars('Accuracy', {
         'Train': train_acc,
         'Validation': val_acc
     }, epoch + 1)
 
-    current_lr = optimizer.param_groups[0]['lr']
-    print(f"Epoch {epoch + 1}/{Config.EPOCHS} | Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} | LR: {current_lr:.6f}")
-    with open(log_csv_path, mode='a', newline='') as f:
-        writer_csv = csv.writer(f)
-        writer_csv.writerow([
-            epoch + 1,
-            f"{train_acc:.4f}",
-            f"{val_acc:.4f}",
-            f"{train_loss / len(train_loader):.6f}",
-            f"{val_loss / len(val_loader):.6f}",
-            f"{current_lr:.6f}"
-        ])
+    # === 控制台输出
+    print(f"Epoch {epoch + 1}/{Config.EPOCHS} | "
+          f"Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} | LR: {current_lr:.6f}")
+
+    # === CSV 日志写入
+    writer_csv.writerow([
+        epoch + 1,
+        f"{train_acc:.4f}",
+        f"{val_acc:.4f}",
+        f"{train_loss_avg:.6f}",
+        f"{val_loss_avg:.6f}",
+        f"{current_lr:.6f}"
+    ])
+    f_csv.flush()  # 保证每轮立即写入磁盘
 
     scheduler.step(val_acc)
     early_stopper(val_acc, model)
@@ -117,5 +122,7 @@ for epoch in range(Config.EPOCHS):
         print("\n🛑 Early stopping triggered.")
         break
 
+# === 清理资源
+f_csv.close()
 writer.close()
 print(f"\n✅ Best model saved to: {Config.MODEL_SAVE_PATH}")
