@@ -6,7 +6,7 @@ Created on 2025/6/30 23:43
 @email: yulin.wang@fau.de
 """
 
-# config.py
+# config.py 只跑某一个设置
 
 import os
 
@@ -33,7 +33,7 @@ class Config:
     # TENSORBOARD_LOG_DIR = os.path.join(BASE_DATA_DIR, "runs", TAG)
     # === 通用配置 ===
     LABEL_CSV_PATH = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data/labels_win400_step200.csv"
-    MODEL_NAME = "cnn_model_bn"
+    MODEL_NAME = "cnn_model_paper"
     # === 根据 LABEL_CSV_PATH 自动提取 TAG ===
     TAG = os.path.basename(LABEL_CSV_PATH).replace("labels_", "").replace(".csv", "")  # 例如 win400_step200 或 fullsignal
 
@@ -55,6 +55,7 @@ class Config:
     EARLY_STOPPING_DELTA = 0.001
     EARLY_STOPPING_MODE = 'max'
     VAL_SPLIT = 0.25
+    TEST_SPLIT = 0.15  # ← new
 
     # Data
     INPUT_SHAPE = (1, 256, 256)

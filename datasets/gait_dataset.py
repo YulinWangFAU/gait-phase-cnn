@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2025/6/30 20:16
-
+用于读取 通用 CSV 文件中的图像路径和标签
 @author: Yulin Wang
 @email: yulin.wang@fau.de
 """

@@ -25,9 +25,9 @@ class CNNModel(nn.Module):
         self.bn3 = nn.BatchNorm2d(64)
         self.pool3 = nn.MaxPool2d(2)  # → (B, 64, 32, 32)
 
-        self.dropout = nn.Dropout(0.5)  # 👈 更强的正则化
+        self.dropout = nn.Dropout(0.5)  # 更强的正则化
 
-        self.fc1 = nn.Linear(64 * 32 * 32, 64)  # 👈 更小的隐藏层
+        self.fc1 = nn.Linear(64 * 32 * 32, 64)  # 更小的隐藏层
         self.fc2 = nn.Linear(64, 2)  # Pt vs Co
 
     def forward(self, x):

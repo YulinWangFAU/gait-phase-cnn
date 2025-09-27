@@ -3,13 +3,13 @@ import torch
 
 class EarlyStopping:
     def __init__(self, patience=5, verbose=True, min_delta=0.0, mode='min', path='checkpoint.pt'):
-        self.patience = patience
-        self.verbose = verbose
-        self.min_delta = min_delta
-        self.mode = mode
-        self.counter = 0
-        self.early_stop = False
-        self.path = path
+        self.patience = patience #如果连续 5 个 epoch 没有提升，就停止训练
+        self.verbose = verbose  # 是否打印日志
+        self.min_delta = min_delta  #最小改善幅度，只有超过这个值才算“有提升”
+        self.mode = mode  #  监控的指标是最小化还是最大化（比如 Loss 要 min，Accuracy 要 max）
+        self.counter = 0  # 记录连续多少次没有提升
+        self.early_stop = False  #提前停止标志
+        self.path = path   #最佳模型保存路径
 
         if self.mode == 'min':
             self.best_score = np.inf

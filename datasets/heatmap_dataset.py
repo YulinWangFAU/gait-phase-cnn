@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2025/6/30 23:23
-
+专门用于读取 步态信号生成的热力图数据
 @author: Yulin Wang
 @email: yulin.wang@fau.de
 """

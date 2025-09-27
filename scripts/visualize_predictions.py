@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2025/6/30 23:49
-
+快速可视化一小批样本，显示模型预测和真实标签，帮助直观评估模型的分类效果。
 @author: Yulin Wang
 @email: yulin.wang@fau.de
 """

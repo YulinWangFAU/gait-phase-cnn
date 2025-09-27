@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# 阈值 & 低通滤波
 import os
 import numpy as np
 import pandas as pd
@@ -24,14 +24,15 @@ SIGNAL_TYPE = 'both'  # left, right, both
 FS = 100  # Hz
 
 # === Signal Processing Functions ===
+# 去掉噪声（低于阈值的地面反作用力设为 0）
 def apply_threshold(signal, threshold=20.0):
     signal[signal < threshold] = 0
     return signal
-
+#巴特沃斯低通滤波，去掉 >10Hz 的高频噪声
 def lowpass_filter(signal, cutoff=10, fs=100, order=4):
     from scipy.signal import butter, filtfilt
     b, a = butter(order, cutoff / (0.5 * fs), btype='low')
-    return filtfilt(b, a, signal, axis=0)
+    return filtfilt(b, a, signal, axis=0)  # 零相位滤波，避免相位失真
 
 def read_signal(filepath, threshold=20.0, apply_filter=True):
     data = np.loadtxt(filepath)

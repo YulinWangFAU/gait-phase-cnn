@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2025/6/30 19:54
-
+把原始 txt 数据整理成 CSV 索引文件，供后面 Dataset 使用
+写入 CSV 文件（比如 index_ga.csv）
 @author: Yulin Wang
 @email: yulin.wang@fau.de
 """

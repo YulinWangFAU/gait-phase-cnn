@@ -1,3 +1,4 @@
+#对 CNN 模型的预测结果进行可解释性分析，用 Grad-CAM 生成一张热力图，叠加到输入图像上，显示模型主要关注的区域
 import torch
 import torch.nn.functional as F
 import torchvision.transforms as transforms

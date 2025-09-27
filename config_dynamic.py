@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2025/7/13 21:55
-
+一次性跑多个不同 win/step 实验
 @author: Yulin Wang
 @email: yulin.wang@fau.de
 """
