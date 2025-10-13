@@ -16,8 +16,8 @@ from scipy.ndimage import gaussian_filter
 from matplotlib import pyplot as plt, cm
 
 # === Global Config ===
-DATA_DIR = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data/raw"
-INDEX_FILES = ["index_ga.csv", "index_ju.csv", "index_si.csv"]
+DATA_DIR = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data/raw"  # 原始 .txt 步态信号目录
+INDEX_FILES = ["index_ga.csv", "index_ju.csv", "index_si.csv"]  #  3 个索引 CSV，列出要处理的文件名和标签
 BASE_OUTPUT_DIR = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data"
 SIGNAL_TYPE = 'both'  # 'left', 'right', or 'both'
 FS = 100  # sampling frequency in Hz
