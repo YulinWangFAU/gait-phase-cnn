@@ -1,61 +1,43 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2025/6/30 23:43
-
-@author: Yulin Wang
-@email: yulin.wang@fau.de
+Final config.py for gait-phase-CNN (Yulin Wang)
 """
-
-# config.py 只跑某一个设置
 
 import os
 
-
 class Config:
-    # Paths
-    # LABEL_CSV_PATH = "data/labels_win400_step200.csv"
-    # CHECKPOINT_DIR = "checkpoints"
-    # MODEL_SAVE_PATH = os.path.join(CHECKPOINT_DIR, "cnn_best.pt")
-    # TENSORBOARD_LOG_DIR = "runs/phase-cnn"
-    # LABEL_CSV_PATH = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data/labels_win400_step200.csv"
-    # CHECKPOINT_DIR = "/home/woody/rlvl/rlvl144v/gait-phase-cnn/checkpoints"
-    # MODEL_SAVE_PATH = os.path.join(CHECKPOINT_DIR, "cnn_best.pt")
-    # TENSORBOARD_LOG_DIR = "/home/woody/rlvl/rlvl144v/gait-phase-cnn/runs/phase-cnn"
+    # === 数据根目录 ===
+    BASE_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data"
 
-    # # Base directory
-    # BASE_DATA_DIR = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data"
-    #
-    # # Placeholder, 将由 pipeline 中动态修改
-    # TAG = "win400_step200"  # 默认标签
-    # LABEL_CSV_PATH = os.path.join(BASE_DATA_DIR, f"labels_{TAG}.csv")
-    # CHECKPOINT_DIR = os.path.join(BASE_DATA_DIR, "checkpoints", TAG)
-    # MODEL_SAVE_PATH = os.path.join(CHECKPOINT_DIR, "cnn_best.pt")
-    # TENSORBOARD_LOG_DIR = os.path.join(BASE_DATA_DIR, "runs", TAG)
-    # === 通用配置 ===
-    LABEL_CSV_PATH = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data/labels_win400_step200.csv"
+    # === 标签文件路径 ===
+    LABEL_CSV_PATH = os.path.join(BASE_DIR, "labels_fullsignal.csv")
+
+    # === 模型名称（对应使用的网络结构文件）===
     MODEL_NAME = "cnn_model_paper"
-    # === 根据 LABEL_CSV_PATH 自动提取 TAG ===
-    TAG = os.path.basename(LABEL_CSV_PATH).replace("labels_", "").replace(".csv", "")  # 例如 win400_step200 或 fullsignal
 
-    # === 自动命名的输出文件夹，基于预处理参数
-    I_POINTS = 3000
-    GAUSS_SMOOTH = 8
-    TAGGED_FOLDER = f"hilbert_tfs_cnn_i{I_POINTS}_s{GAUSS_SMOOTH}_{TAG}"  # 自动拼接
+    # === 数据与预处理标识（方便区分不同实验） ===
+    I_POINTS = 3000       # 插值点数
+    GAUSS_SMOOTH = 8      # 高斯平滑核
+    TAG = os.path.basename(LABEL_CSV_PATH).replace("labels_", "").replace(".csv", "")
+    TAGGED_FOLDER = f"hilbert_tfs_cnn_i{I_POINTS}_s{GAUSS_SMOOTH}_{TAG}"
 
-    BASE_DIR = "/home/woody/rlvl/rlvl144v/gaitphasecnn_raw_data"
+    # === 自动生成输出路径（模型、日志等） ===
     CHECKPOINT_DIR = os.path.join(BASE_DIR, "checkpoints", TAGGED_FOLDER, MODEL_NAME)
     MODEL_SAVE_PATH = os.path.join(CHECKPOINT_DIR, "cnn_best.pt")
     TENSORBOARD_LOG_DIR = os.path.join(BASE_DIR, "runs", TAGGED_FOLDER, MODEL_NAME)
-    # Training settings
+
+    # === 训练超参数 ===
     BATCH_SIZE = 4
     EPOCHS = 50
     LEARNING_RATE = 5e-4
-    WEIGHT_DECAY = 1e-4  # ← NEW
+    WEIGHT_DECAY = 1e-4
     EARLY_STOPPING_PATIENCE = 10
     EARLY_STOPPING_DELTA = 0.001
     EARLY_STOPPING_MODE = 'max'
-    VAL_SPLIT = 0.25
-    TEST_SPLIT = 0.15  # ← new
 
-    # Data
-    INPUT_SHAPE = (1, 256, 256)
+    # === 数据集划分比例 ===
+    VAL_SPLIT = 0.15
+    TEST_SPLIT = 0.15
+
+    # === 输入形状 ===
+    INPUT_SHAPE = (1, 256, 256)  # 单通道热力图
