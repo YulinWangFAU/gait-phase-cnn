@@ -14,7 +14,7 @@ class CNNModel(nn.Module):
         self.pool3 = nn.MaxPool2d(2)                             # → (B, 64, 32, 32)
 
         self.fc1 = nn.Linear(64 * 32 * 32, 128)
-        self.dropout = nn.Dropout(0.3)  #  NEW: Dropout 层
+        self.dropout = nn.Dropout(0.7)  # NEW: Dropout 层
         self.fc2 = nn.Linear(128, 2)  # 2类：Pt 和 Co
 
     def forward(self, x):
