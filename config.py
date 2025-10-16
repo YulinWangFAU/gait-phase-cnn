@@ -4,6 +4,7 @@ Final config.py for gait-phase-CNN (Yulin Wang)
 """
 
 import os
+from datetime import datetime
 
 class Config:
     # === 数据根目录 ===
@@ -19,7 +20,7 @@ class Config:
     I_POINTS = 3000       # 插值点数
     GAUSS_SMOOTH = 8      # 高斯平滑核
     TAG = os.path.basename(LABEL_CSV_PATH).replace("labels_", "").replace(".csv", "")
-    TAGGED_FOLDER = f"hilbert_tfs_cnn_i{I_POINTS}_s{GAUSS_SMOOTH}_{TAG}"
+    TAGGED_FOLDER = f"hilbert_tfs_cnn_i{I_POINTS}_s{GAUSS_SMOOTH}_{TAG}_{datetime.now().strftime('%Y%m%d_%H%M')}"
 
     # === 自动生成输出路径（模型、日志等） ===
     CHECKPOINT_DIR = os.path.join(BASE_DIR, "checkpoints", TAGGED_FOLDER, MODEL_NAME)
