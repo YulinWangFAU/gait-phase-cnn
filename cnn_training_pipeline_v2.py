@@ -74,7 +74,7 @@ for g in groups:
 
             # === 日志路径 ===
             log_dir = os.path.join(Config.TENSORBOARD_LOG_DIR,
-                                   f"{g}{c}_fc{fc_size}_win{args.win}_step{args.step}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+                                   f"{g}{c}_fc{fc_size}_win{args.win}_step{args.step}")
             os.makedirs(log_dir, exist_ok=True)
             log_csv_path = os.path.join(log_dir, "training_log.csv")
             f_csv = open(log_csv_path, 'w', newline='')
