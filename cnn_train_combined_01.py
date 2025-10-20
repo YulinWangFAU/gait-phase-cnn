@@ -1,15 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2025/10/16 16:17
-
-@author: Yulin Wang
-@email: yulin.wang@fau.de
-"""
-
-# -*- coding: utf-8 -*-
-"""
 Train combined CNN model on Ga_01 + Ju_01 + Si_01
-Saves checkpoints every 5 epochs and the best validation model
+Now includes a fixed train/val/test split (70/15/15)
+Saves test indices to ensure reproducibility
 """
 
 import argparse
@@ -18,7 +11,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Subset
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from datetime import datetime
 import pandas as pd
@@ -62,18 +55,40 @@ for fc_size in fc_sizes:
     subset_csv = os.path.join(Config.BASE_DIR, f"labels_All{condition}.csv")
     subset_df.to_csv(subset_csv, index=False)
 
-    # === 数据划分 ===
+    # === 数据加载 ===
     dataset = HeatmapDataset(subset_csv)
     total_size = len(dataset)
-    val_ratio = 0.15
-    val_size = int(total_size * val_ratio)
-    train_size = total_size - val_size
-    train_ds, val_ds = random_split(dataset, [train_size, val_size])
 
+    val_ratio = Config.VAL_SPLIT  # 0.15
+    test_ratio = Config.TEST_SPLIT  # 0.15
+    val_size = int(total_size * val_ratio)
+    test_size = int(total_size * test_ratio)
+    train_size = total_size - val_size - test_size
+
+    # === 测试集索引文件路径 ===
+    test_idx_path = os.path.join(Config.CHECKPOINT_DIR, "test_indices.pt")
+
+    if os.path.exists(test_idx_path):
+        print(f"📂 Loading existing test split: {test_idx_path}")
+        test_indices = torch.load(test_idx_path)
+        # 随机重新划分 train/val（但固定 test）
+        remaining_indices = [i for i in range(total_size) if i not in test_indices]
+        remaining_ds = Subset(dataset, remaining_indices)
+        val_size_new = int(len(remaining_indices) * val_ratio / (1 - test_ratio))
+        train_size_new = len(remaining_indices) - val_size_new
+        train_ds, val_ds = random_split(remaining_ds, [train_size_new, val_size_new])
+        test_ds = Subset(dataset, test_indices)
+    else:
+        print(f"🧩 Creating new train/val/test split (70/15/15)")
+        train_ds, val_ds, test_ds = random_split(dataset, [train_size, val_size, test_size])
+        torch.save(test_ds.indices, test_idx_path)
+        print(f"💾 Saved test indices to {test_idx_path}")
+
+    # === DataLoaders ===
     train_loader = DataLoader(train_ds, batch_size=Config.BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=Config.BATCH_SIZE, shuffle=False)
 
-    # === 模型 & 训练组件 ===
+    # === 模型 & 优化器 ===
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = CNNModel(fc_size=fc_size).to(device)
     criterion = nn.CrossEntropyLoss()
@@ -126,8 +141,8 @@ for fc_size in fc_sizes:
                 val_loss += loss.item()
                 val_correct += (output.argmax(dim=1) == y).sum().item()
 
-        train_acc = train_correct / train_size
-        val_acc = val_correct / val_size
+        train_acc = train_correct / len(train_ds)
+        val_acc = val_correct / len(val_ds)
         train_loss_avg = train_loss / len(train_loader)
         val_loss_avg = val_loss / len(val_loader)
 
@@ -136,7 +151,6 @@ for fc_size in fc_sizes:
         train_loss_list.append(train_loss_avg)
         val_loss_list.append(val_loss_avg)
 
-        # === 日志与输出 ===
         print(f"Epoch {epoch + 1}/{Config.EPOCHS} | "
               f"Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} | "
               f"Train Loss: {train_loss_avg:.4f} | Val Loss: {val_loss_avg:.4f}")

@@ -30,7 +30,7 @@ class Config:
     # === 训练超参数 ===
     BATCH_SIZE = 4
     EPOCHS = 50
-    LEARNING_RATE = 5e-4
+    LEARNING_RATE = 1e-4
     WEIGHT_DECAY = 1e-4
     EARLY_STOPPING_PATIENCE = 10
     EARLY_STOPPING_DELTA = 0.001
