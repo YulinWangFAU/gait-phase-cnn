@@ -11,7 +11,7 @@ from datetime import datetime
 class Config:
     # === 通用根目录 ===
     ROOT_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data"
-
+    BASE_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data"
     # === 数据与预处理参数 ===
     I_POINTS = 1500       # 插值点数
     GAUSS_SMOOTH = 6      # 高斯平滑核
@@ -20,7 +20,7 @@ class Config:
     VERSION_TAG = f"i{I_POINTS}_s{GAUSS_SMOOTH}"
 
     # === 版本专属目录（自动生成） ===
-    BASE_DIR = os.path.join(ROOT_DIR, f"version_{VERSION_TAG}")
+    #BASE_DIR = os.path.join(ROOT_DIR, f"version_{VERSION_TAG}")
 
     # === 确保版本目录存在 ===
     os.makedirs(BASE_DIR, exist_ok=True)
