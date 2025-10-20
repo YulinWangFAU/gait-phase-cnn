@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Train combined CNN model on Ga_01 + Ju_01 + Si_01
-Now includes a fixed train/val/test split (70/15/15)
-Saves test indices to ensure reproducibility
+Now includes dynamic label path from Config (I_POINTS, GAUSS_SMOOTH)
+and fixed train/val/test split (70/15/15)
 """
 
 import argparse
@@ -28,12 +28,23 @@ parser.add_argument('--win', type=int, required=True, help='Window size (use 0 f
 parser.add_argument('--step', type=int, required=True, help='Step size (use 0 for full signal)')
 args = parser.parse_args()
 
+# === 打印当前配置参数 ===
+print(f"\n🧭 Current Config: I_POINTS={Config.I_POINTS}, GAUSS_SMOOTH={Config.GAUSS_SMOOTH}")
+print(f"📂 Output folder: {Config.TENSORBOARD_LOG_DIR}")
+
+# === 自动更新标签路径 ===
+config_name = f"fullsignal_i{Config.I_POINTS}_s{Config.GAUSS_SMOOTH}"
+LABEL_CSV_PATH = os.path.join(Config.BASE_DIR, f"labels_{config_name}.csv")
+
+if not os.path.exists(LABEL_CSV_PATH):
+    raise FileNotFoundError(f"❌ Label file not found: {LABEL_CSV_PATH}\n请先运行生成热力图脚本。")
+
 # === 全局目录 ===
 os.makedirs(Config.CHECKPOINT_DIR, exist_ok=True)
 os.makedirs(Config.TENSORBOARD_LOG_DIR, exist_ok=True)
 
 # === 加载完整标签文件 ===
-full_df = pd.read_csv(Config.LABEL_CSV_PATH)
+full_df = pd.read_csv(LABEL_CSV_PATH)
 
 # === 超参数组合 ===
 fc_sizes = [128, 256, 512]
@@ -42,6 +53,7 @@ condition = "_01"  # 只训练 _01 条件的合并数据
 # === 主训练循环 ===
 for fc_size in fc_sizes:
     print(f"\n🚀 Training combined dataset: All groups {condition} with fc_size={fc_size}")
+    print(f"🔧 Using heatmaps from {config_name}")
 
     # === 合并 Ga_01 + Ju_01 + Si_01 ===
     subset_df = full_df[full_df["filename"].str.contains(condition)]
@@ -52,7 +64,7 @@ for fc_size in fc_sizes:
     print(f"✅ Found {len(subset_df)} samples for {condition}")
 
     # 保存合并后的标签文件
-    subset_csv = os.path.join(Config.BASE_DIR, f"labels_All{condition}.csv")
+    subset_csv = os.path.join(Config.BASE_DIR, f"labels_All{condition}_{config_name}.csv")
     subset_df.to_csv(subset_csv, index=False)
 
     # === 数据加载 ===
@@ -66,12 +78,11 @@ for fc_size in fc_sizes:
     train_size = total_size - val_size - test_size
 
     # === 测试集索引文件路径 ===
-    test_idx_path = os.path.join(Config.CHECKPOINT_DIR, "test_indices.pt")
+    test_idx_path = os.path.join(Config.CHECKPOINT_DIR, f"test_indices_{config_name}.pt")
 
     if os.path.exists(test_idx_path):
         print(f"📂 Loading existing test split: {test_idx_path}")
         test_indices = torch.load(test_idx_path)
-        # 随机重新划分 train/val（但固定 test）
         remaining_indices = [i for i in range(total_size) if i not in test_indices]
         remaining_ds = Subset(dataset, remaining_indices)
         val_size_new = int(len(remaining_indices) * val_ratio / (1 - test_ratio))
@@ -96,7 +107,7 @@ for fc_size in fc_sizes:
     scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
 
     # === 模型保存路径 ===
-    best_model_path = os.path.join(Config.CHECKPOINT_DIR, f"best_All{condition}_fc{fc_size}.pth")
+    best_model_path = os.path.join(Config.CHECKPOINT_DIR, f"best_All{condition}_fc{fc_size}_{config_name}.pth")
 
     early_stopper = EarlyStopping(
         patience=Config.EARLY_STOPPING_PATIENCE,
@@ -158,15 +169,13 @@ for fc_size in fc_sizes:
         writer_csv.writerow([epoch + 1, train_acc, val_acc, train_loss_avg, val_loss_avg, optimizer.param_groups[0]['lr']])
         f_csv.flush()
 
-        # === 保存最优模型 ===
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(model.state_dict(), best_model_path)
             print(f"🌟 Saved new best model at epoch {epoch + 1} (Val Acc = {val_acc:.4f})")
 
-        # === 每隔5个epoch保存一个checkpoint ===
         if (epoch + 1) % 5 == 0:
-            ckpt_path = os.path.join(Config.CHECKPOINT_DIR, f"epoch{epoch+1:03d}_All{condition}_fc{fc_size}.pth")
+            ckpt_path = os.path.join(Config.CHECKPOINT_DIR, f"epoch{epoch+1:03d}_All{condition}_fc{fc_size}_{config_name}.pth")
             torch.save(model.state_dict(), ckpt_path)
             print(f"💾 Saved checkpoint: {ckpt_path}")
 
@@ -181,7 +190,7 @@ for fc_size in fc_sizes:
     plt.plot(train_acc_list, label='Train Acc')
     plt.plot(val_acc_list, label='Val Acc')
     plt.xlabel('Epoch'); plt.ylabel('Accuracy'); plt.legend()
-    plt.title(f'All{condition} fc={fc_size} Accuracy')
+    plt.title(f'All{condition} fc={fc_size} Accuracy ({config_name})')
     plt.savefig(os.path.join(log_dir, f"All{condition}_fc{fc_size}_acc.png"))
     plt.close()
 
@@ -189,7 +198,7 @@ for fc_size in fc_sizes:
     plt.plot(train_loss_list, label='Train Loss')
     plt.plot(val_loss_list, label='Val Loss')
     plt.xlabel('Epoch'); plt.ylabel('Loss'); plt.legend()
-    plt.title(f'All{condition} fc={fc_size} Loss')
+    plt.title(f'All{condition} fc={fc_size} Loss ({config_name})')
     plt.savefig(os.path.join(log_dir, f"All{condition}_fc{fc_size}_loss.png"))
     plt.close()
 

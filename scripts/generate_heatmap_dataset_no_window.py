@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on 2025/7/13
-
+Modified on 2025/10/20 to use Config.I_POINTS and Config.GAUSS_SMOOTH
 @author: Yulin Wang
-@email: yulin.wang@fau.de
 """
 
 import os
@@ -15,16 +14,18 @@ from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter
 from matplotlib import pyplot as plt, cm
 
+# === 引入 Config ===
+from config import Config
+
 # === Global Config ===
-DATA_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data/raw"  # 原始 .txt 步态信号目录
-INDEX_FILES = ["index_ga.csv", "index_ju.csv", "index_si.csv"]  #  3 个索引 CSV，列出要处理的文件名和标签
-BASE_OUTPUT_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data"
+DATA_DIR = os.path.join(Config.BASE_DIR, "raw")
+INDEX_FILES = ["index_ga.csv", "index_ju.csv", "index_si.csv"]
 SIGNAL_TYPE = 'both'  # 'left', 'right', or 'both'
 FS = 100  # sampling frequency in Hz
 
 # === Output directory ===
-config_name = "fullsignal"
-output_dir = os.path.join(BASE_OUTPUT_DIR, f"heatmaps_{config_name}")
+config_name = f"fullsignal_i{Config.I_POINTS}_s{Config.GAUSS_SMOOTH}"
+output_dir = os.path.join(Config.BASE_DIR, f"heatmaps_{config_name}")
 os.makedirs(output_dir, exist_ok=True)
 records = []
 
@@ -62,17 +63,17 @@ def get_gait_signal(sensors, signal_type='both'):
     signal = signal / np.max(np.abs(signal))
     return signal
 
-def inter2D(points):
+def inter2D(points, n_points=Config.I_POINTS):  # 🟢 使用 Config.I_POINTS
     distance = np.cumsum(np.sqrt(np.sum(np.diff(points, axis=0) ** 2, axis=1)))
     distance = np.insert(distance, 0, 0)
     distance = distance / distance[-1]
-    alpha = np.linspace(0, 1, 3000)
+    alpha = np.linspace(0, 1, n_points)
     interpolator = interp1d(distance, points, kind='cubic', axis=0)
     return interpolator(alpha)
 
 def get_heat(signal):
     bins = 248
-    s = 8
+    s = Config.GAUSS_SMOOTH  # 🟢 使用 Config.GAUSS_SMOOTH
     analytic_signal = hilbert(signal)
     env = np.abs(analytic_signal)
     env[env < 1e-6] = 1e-6
@@ -92,7 +93,7 @@ def get_heat(signal):
 # === Main Loop ===
 print(f"\n🚀 Processing config: {config_name}")
 for index_file in INDEX_FILES:
-    index_path = os.path.join(BASE_OUTPUT_DIR, index_file)
+    index_path = os.path.join(Config.BASE_DIR, index_file)
     df = pd.read_csv(index_path)
 
     for i, row in tqdm(df.iterrows(), total=len(df), desc=f"{index_file}"):
@@ -105,7 +106,6 @@ for index_file in INDEX_FILES:
             sensors = read_signal(filepath)
             signal = get_gait_signal(sensors, signal_type=SIGNAL_TYPE)
 
-            # === No sliding window: whole signal ===
             heatmap = get_heat(signal)
             out_name = f"{basename}.png"
             out_path = os.path.join(output_dir, out_name)
@@ -116,6 +116,6 @@ for index_file in INDEX_FILES:
 
 # === Save label file ===
 label_df = pd.DataFrame(records)
-label_csv_path = os.path.join(BASE_OUTPUT_DIR, f"labels_{config_name}.csv")
+label_csv_path = os.path.join(Config.BASE_DIR, f"labels_{config_name}.csv")
 label_df.to_csv(label_csv_path, index=False)
 print(f"✅ Saved {len(records)} samples to: {label_csv_path}")

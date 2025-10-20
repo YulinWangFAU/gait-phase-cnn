@@ -17,8 +17,8 @@ class Config:
     MODEL_NAME = "cnn_model_paper"
 
     # === 数据与预处理标识（方便区分不同实验） ===
-    I_POINTS = 3000       # 插值点数
-    GAUSS_SMOOTH = 8      # 高斯平滑核
+    I_POINTS = 1500       # 插值点数
+    GAUSS_SMOOTH = 6      # 高斯平滑核
     TAG = os.path.basename(LABEL_CSV_PATH).replace("labels_", "").replace(".csv", "")
     TAGGED_FOLDER = f"hilbert_tfs_cnn_i{I_POINTS}_s{GAUSS_SMOOTH}_{TAG}_{datetime.now().strftime('%Y%m%d_%H%M')}"
 
