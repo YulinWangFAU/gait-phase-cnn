@@ -18,7 +18,8 @@ from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter
 from matplotlib import pyplot as plt, cm
 from config import Config
-
+from config import Config
+Config.initialize()
 # === 全局路径与参数 ===
 INDEX_PREFIXES = ["ga", "ju", "si"]  # 支持三个分组
 SIGNAL_TYPE = 'both'                 # 可选：'left'、'right'、'both'
