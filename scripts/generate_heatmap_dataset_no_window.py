@@ -4,7 +4,9 @@ Created on 2025/7/13
 Modified on 2025/10/20 to use Config.I_POINTS and Config.GAUSS_SMOOTH
 @author: Yulin Wang
 """
-
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))          # 当前 scripts/
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 上级 gait-phase-cnn/
 import os
 import numpy as np
 import pandas as pd
