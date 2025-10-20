@@ -1,14 +1,32 @@
 # -*- coding: utf-8 -*-
 """
 Final config.py for gait-phase-CNN (Yulin Wang)
+Version-managed configuration supporting multiple preprocessing settings
 """
 
 import os
 from datetime import datetime
 
+
 class Config:
-    # === 数据根目录 ===
-    BASE_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data"
+    # === 通用根目录 ===
+    ROOT_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data"
+
+    # === 数据与预处理参数 ===
+    I_POINTS = 1500       # 插值点数
+    GAUSS_SMOOTH = 6      # 高斯平滑核
+
+    # === 版本标签（根据插值和平滑核自动生成） ===
+    VERSION_TAG = f"i{I_POINTS}_s{GAUSS_SMOOTH}"
+
+    # === 版本专属目录（自动生成） ===
+    BASE_DIR = os.path.join(ROOT_DIR, f"version_{VERSION_TAG}")
+
+    # === 确保版本目录存在 ===
+    os.makedirs(BASE_DIR, exist_ok=True)
+    os.makedirs(os.path.join(BASE_DIR, "checkpoints"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DIR, "runs"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DIR, "heatmaps_fullsignal"), exist_ok=True)
 
     # === 标签文件路径 ===
     LABEL_CSV_PATH = os.path.join(BASE_DIR, "labels_fullsignal.csv")
@@ -16,11 +34,9 @@ class Config:
     # === 模型名称（对应使用的网络结构文件）===
     MODEL_NAME = "cnn_model_paper"
 
-    # === 数据与预处理标识（方便区分不同实验） ===
-    I_POINTS = 1500       # 插值点数
-    GAUSS_SMOOTH = 6      # 高斯平滑核
+    # === 时间戳标识（用于生成唯一输出文件夹） ===
     TAG = os.path.basename(LABEL_CSV_PATH).replace("labels_", "").replace(".csv", "")
-    TAGGED_FOLDER = f"hilbert_tfs_cnn_i{I_POINTS}_s{GAUSS_SMOOTH}_{TAG}_{datetime.now().strftime('%Y%m%d_%H%M')}"
+    TAGGED_FOLDER = f"hilbert_tfs_cnn_{VERSION_TAG}_{TAG}_{datetime.now().strftime('%Y%m%d_%H%M')}"
 
     # === 自动生成输出路径（模型、日志等） ===
     CHECKPOINT_DIR = os.path.join(BASE_DIR, "checkpoints", TAGGED_FOLDER, MODEL_NAME)
@@ -42,3 +58,11 @@ class Config:
 
     # === 输入形状 ===
     INPUT_SHAPE = (1, 256, 256)  # 单通道热力图
+
+    # === 调试打印（显示当前版本配置） ===
+    print(f"\n🧭 Config Loaded:")
+    print(f"   → Version tag: {VERSION_TAG}")
+    print(f"   → Base dir: {BASE_DIR}")
+    print(f"   → Label CSV: {LABEL_CSV_PATH}")
+    print(f"   → Checkpoints: {CHECKPOINT_DIR}")
+    print(f"   → TensorBoard logs: {TENSORBOARD_LOG_DIR}\n")
