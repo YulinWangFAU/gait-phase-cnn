@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Generate heatmap dataset for gait signals (no windowing)
-Versioned by Config.I_POINTS and Config.GAUSS_SMOOTH
-Automatically summarizes results and prevents overwriting between versions.
-Created by Yulin Wang, modified 2025/10/20
+Generate heatmaps for gait-phase CNN (Yulin Wang)
+Now supports Config.VERSION_TAG and per-group statistics
 """
 
 import sys, os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))          # 当前 scripts/
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 上级 gait-phase-cnn/
-
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -18,27 +15,25 @@ from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter
 from matplotlib import pyplot as plt, cm
 from config import Config
-from config import Config
+
 Config.initialize()
-# === 全局路径与参数 ===
-INDEX_PREFIXES = ["ga", "ju", "si"]  # 支持三个分组
-SIGNAL_TYPE = 'both'                 # 可选：'left'、'right'、'both'
-FS = 100                             # 采样率（Hz）
 
-config_name = f"fullsignal_i{Config.I_POINTS}_s{Config.GAUSS_SMOOTH}"
+# === Global Config ===
 DATA_DIR = os.path.join(Config.BASE_DIR, "raw")
-output_dir = os.path.join(Config.BASE_DIR, f"heatmaps_{config_name}")
+INDEX_FILES = ["index_ga.csv", "index_ju.csv", "index_si.csv"]
+SIGNAL_TYPE = 'both'
+FS = 100
+
+# === Output directory ===
+config_name = f"fullsignal_{Config.VERSION_TAG}"
+output_dir = Config.HEATMAP_DIR
 os.makedirs(output_dir, exist_ok=True)
-
-print("\n🧭 Running Heatmap Generation")
-print(f"   ➤ I_POINTS = {Config.I_POINTS}")
-print(f"   ➤ GAUSS_SMOOTH = {Config.GAUSS_SMOOTH}")
-print(f"📂 Input directory : {DATA_DIR}")
-print(f"📁 Output directory: {output_dir}\n")
-
 records = []
 
-# === 功能函数 ===
+# === Statistics counters ===
+group_counts = {"GA": 0, "JU": 0, "SI": 0}
+
+# === Processing Functions ===
 def apply_threshold(signal, threshold=20.0):
     signal[signal < threshold] = 0
     return signal
@@ -99,18 +94,24 @@ def get_heat(signal):
     hmap[p:-p, p:-p] = heatmap
     return gaussian_filter(hmap, sigma=s).T
 
-# === 主处理循环 ===
-for prefix in INDEX_PREFIXES:
-    index_file = f"index_{prefix}.csv"
+# === Main Loop ===
+print(f"\n🧭 Running Heatmap Generation\n   ➤ I_POINTS = {Config.I_POINTS}\n   ➤ GAUSS_SMOOTH = {Config.GAUSS_SMOOTH}")
+print(f"📂 Input directory : {DATA_DIR}")
+print(f"📁 Output directory: {output_dir}\n")
+
+for index_file in INDEX_FILES:
+    group_name = index_file.split("_")[1].split(".")[0].upper()  # GA / JU / SI
     index_path = os.path.join(Config.BASE_DIR, index_file)
+
     if not os.path.exists(index_path):
         print(f"⚠️ Index file not found: {index_path}, skipping...")
         continue
 
-    print(f"\n🚀 Processing group: {prefix.upper()} | Config: {config_name}")
+    print(f"\n🚀 Processing group: {group_name} | Config: {config_name}")
     df = pd.read_csv(index_path)
+    group_counts[group_name] = len(df)  # record how many files are in index
 
-    for _, row in tqdm(df.iterrows(), total=len(df), desc=f"{prefix.upper()}"):
+    for i, row in tqdm(df.iterrows(), total=len(df), desc=f"{group_name}"):
         fname = row["filename"]
         label = row["label"]
         basename = fname.replace(".txt", "")
@@ -120,23 +121,25 @@ for prefix in INDEX_PREFIXES:
             sensors = read_signal(filepath)
             signal = get_gait_signal(sensors, signal_type=SIGNAL_TYPE)
             heatmap = get_heat(signal)
+
             out_name = f"{basename}.png"
             out_path = os.path.join(output_dir, out_name)
             plt.imsave(out_path, heatmap, cmap=cm.hot)
             records.append({"filename": out_path, "label": label})
+
         except Exception as e:
             print(f"❌ Error processing {fname}: {e}")
 
-# === 保存标签文件 ===
+# === Save label file ===
+label_df = pd.DataFrame(records)
 label_csv_path = os.path.join(Config.BASE_DIR, f"labels_{config_name}.csv")
-pd.DataFrame(records).to_csv(label_csv_path, index=False)
+label_df.to_csv(label_csv_path, index=False)
 
-# === 输出统计信息 ===
-print("\n✅ Generation Summary")
+# === Final summary ===
+print(f"\n✅ Generation Summary")
 print(f"🗂️ Total samples generated: {len(records)}")
-for prefix in INDEX_PREFIXES:
-    count = len([r for r in records if f'/{prefix.upper()}' in r['filename'] or f'_{prefix}' in r['filename']])
-    print(f"  ├─ {prefix.upper()}: {count} samples")
+for g in ["GA", "JU", "SI"]:
+    print(f"  ├─ {g}: {group_counts[g]} samples")
 print(f"💾 Labels saved to: {label_csv_path}")
 print(f"📁 Heatmaps saved to: {output_dir}\n")
-print("🎯 Done.\n")
+print("🎯 Done.")
