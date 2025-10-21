@@ -19,6 +19,8 @@ from datasets.heatmap_dataset import HeatmapDataset
 from utils.early_stopping import EarlyStopping
 from config import Config
 from models.cnn_model_paper import CNNModel
+from tqdm import tqdm
+tqdm.disable = True  # ✅ 禁用 tqdm 防止stdout写入干扰CSV
 
 # === argparse 参数 ===
 parser = argparse.ArgumentParser()
@@ -120,9 +122,11 @@ for fc_size in fc_sizes:
     log_dir = os.path.join(Config.TENSORBOARD_LOG_DIR, f"All{condition}_fc{fc_size}_win{args.win}_step{args.step}")
     os.makedirs(log_dir, exist_ok=True)
     log_csv_path = os.path.join(log_dir, "training_log.csv")
-    f_csv = open(log_csv_path, 'w', newline='')
+    f_csv = open(log_csv_path, 'w', newline='', encoding='utf-8')  # ✅ 指定编码
     writer_csv = csv.writer(f_csv)
     writer_csv.writerow(['epoch', 'train_acc', 'val_acc', 'train_loss', 'val_loss', 'lr'])
+    f_csv.flush()
+    os.fsync(f_csv.fileno())  # ✅ 防止缓冲问题
 
     # === 训练循环 ===
     best_val_acc = 0.0
@@ -166,8 +170,16 @@ for fc_size in fc_sizes:
               f"Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} | "
               f"Train Loss: {train_loss_avg:.4f} | Val Loss: {val_loss_avg:.4f}")
 
-        writer_csv.writerow([epoch + 1, train_acc, val_acc, train_loss_avg, val_loss_avg, optimizer.param_groups[0]['lr']])
+        writer_csv.writerow([
+            f"{epoch + 1}",
+            f"{train_acc:.6f}",
+            f"{val_acc:.6f}",
+            f"{train_loss_avg:.6f}",
+            f"{val_loss_avg:.6f}",
+            f"{optimizer.param_groups[0]['lr']:.6f}"
+        ])
         f_csv.flush()
+        os.fsync(f_csv.fileno())  # ✅ 确保立即写入磁盘
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc

@@ -19,6 +19,9 @@ from utils.early_stopping import EarlyStopping
 from config import Config
 from models.cnn_model_paper import CNNModel
 
+from tqdm import tqdm
+tqdm.disable = True  # ✅ 禁用 tqdm 进度条，防止 CSV 出现换行错位
+
 # === argparse 参数 ===
 parser = argparse.ArgumentParser()
 parser.add_argument('--win', type=int, required=True, help='Window size (use 0 for full signal)')
@@ -100,9 +103,11 @@ for g in groups:
             )
             os.makedirs(log_dir, exist_ok=True)
             log_csv_path = os.path.join(log_dir, "training_log.csv")
-            f_csv = open(log_csv_path, 'w', newline='')
+            f_csv = open(log_csv_path, 'w', newline='', encoding='utf-8')  # ✅ 指定编码
             writer_csv = csv.writer(f_csv)
             writer_csv.writerow(['epoch', 'train_acc', 'val_acc', 'train_loss', 'val_loss', 'lr'])
+            f_csv.flush()
+            os.fsync(f_csv.fileno())  # ✅ 防止缓冲问题
 
             # === 训练循环 ===
             train_acc_list, val_acc_list, train_loss_list, val_loss_list = [], [], [], []
@@ -144,9 +149,15 @@ for g in groups:
                       f"Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}")
 
                 writer_csv.writerow([
-                    epoch + 1, train_acc, val_acc, train_loss_avg, val_loss_avg, optimizer.param_groups[0]['lr']
+                    f"{epoch + 1}",
+                    f"{train_acc:.6f}",
+                    f"{val_acc:.6f}",
+                    f"{train_loss_avg:.6f}",
+                    f"{val_loss_avg:.6f}",
+                    f"{optimizer.param_groups[0]['lr']:.6f}"
                 ])
                 f_csv.flush()
+                os.fsync(f_csv.fileno())  # ✅ 确保立即写入磁盘
 
                 scheduler.step(val_acc)
                 early_stopper(val_acc, model)
