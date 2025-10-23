@@ -69,6 +69,8 @@ for fc_size in fc_sizes:
 
     subset_csv = os.path.join(Config.BASE_DIR, f"labels_All{condition}_{config_name}.csv")
     subset_df.to_csv(subset_csv, index=False)
+    os.sync()  # 🔧 确保文件写入完成
+    print(f"✅ subset_csv saved to {subset_csv} (rows={len(subset_df)})")
 
     dataset = HeatmapDataset(subset_csv)
     total_size = len(dataset)
@@ -126,6 +128,7 @@ for fc_size in fc_sizes:
     best_val_acc = 0.0
     train_acc_list, val_acc_list, train_loss_list, val_loss_list = [], [], [], []
 
+    # === 训练循环 ===
     for epoch in range(Config.EPOCHS):
         model.train()
         train_loss, train_correct = 0.0, 0
@@ -154,6 +157,12 @@ for fc_size in fc_sizes:
         val_acc = val_correct / len(val_ds)
         train_loss_avg = train_loss / len(train_loader)
         val_loss_avg = val_loss / len(val_loader)
+
+        # === ✅ 新增：保存每轮指标供绘图 ===
+        train_acc_list.append(train_acc)
+        val_acc_list.append(val_acc)
+        train_loss_list.append(train_loss_avg)
+        val_loss_list.append(val_loss_avg)
 
         print(f"Epoch {epoch + 1}/{Config.EPOCHS} | "
               f"Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} | "
@@ -186,6 +195,7 @@ for fc_size in fc_sizes:
             print(f"🛑 Early stopping at epoch {epoch + 1} (no improvement).")
             break
 
+    # === 绘制准确率与损失曲线 ===
     plt.figure()
     plt.plot(train_acc_list, label='Train Acc')
     plt.plot(val_acc_list, label='Val Acc')

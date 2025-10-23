@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Evaluate combined CNN models (All_01, All_02)
+Evaluate combined CNN models (All_01)
 Version: WITHOUT Hilbert transform
 All paths, files, and outputs are marked with "_nohilbert"
 """
@@ -10,15 +10,15 @@ import csv
 import torch
 import pandas as pd
 import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset
 from models.cnn_model_paper import CNNModel
 from datasets.heatmap_dataset import HeatmapDataset
 from config import Config
 
 # === 参数设置 ===
-conditions = ["_01", "_02"]     # 可扩展
+conditions = ["_01"]     # 当前只训练了 _01
 fc_sizes = [128, 256, 512]
-group = "All"                   # 合并组（Ga + Ju + Si）
+group = "All"            # 合并组（Ga + Ju + Si）
 
 # === 当前版本信息 ===
 print(f"\n🧭 Evaluating models (NO Hilbert) for version: {Config.VERSION_TAG}_nohilbert")
@@ -64,12 +64,14 @@ for c in conditions:
         # === 加载数据 ===
         dataset = HeatmapDataset(label_csv)
         total_size = len(dataset)
-        test_ratio = Config.TEST_SPLIT
-        val_ratio = Config.VAL_SPLIT
-        test_size = int(total_size * test_ratio)
-        val_size = int(total_size * val_ratio)
-        train_size = total_size - val_size - test_size
-        _, _, test_ds = random_split(dataset, [train_size, val_size, test_size])
+
+        # === 加载与训练一致的 test split ===
+        test_idx_path = os.path.join(CHECKPOINT_DIR, f"test_indices_{Config.VERSION_TAG}_nohilbert.pt")
+        if not os.path.exists(test_idx_path):
+            print(f"⚠️ Test indices file not found: {test_idx_path}")
+            continue
+        test_indices = torch.load(test_idx_path)
+        test_ds = Subset(dataset, test_indices)
         test_loader = DataLoader(test_ds, batch_size=Config.BATCH_SIZE, shuffle=False)
 
         # === 加载模型 ===
