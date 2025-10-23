@@ -22,7 +22,9 @@ group = "All"            # 合并组（Ga + Ju + Si）
 
 # === 当前版本信息 ===
 print(f"\n🧭 Evaluating models (NO Hilbert) for version: {Config.VERSION_TAG}_nohilbert")
-CHECKPOINT_DIR = Config.CHECKPOINT_DIR + "_nohilbert"
+#CHECKPOINT_DIR = Config.CHECKPOINT_DIR + "_nohilbert" 需要修改
+CHECKPOINT_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data/checkpoints/hilbert_tfs_cnn_i1500_s6_fullsignal_20251023_2245/cnn_model_paper_nohilbert"
+
 print(f"📁 Base dir: {Config.BASE_DIR}")
 print(f"📁 Checkpoints dir: {CHECKPOINT_DIR}")
 
