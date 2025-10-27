@@ -13,8 +13,8 @@ for fname in os.listdir(data_dir):
         subject_id = parts[0]       # GaCo01 / GaPt01
         trial = parts[1]            # "01", "02", or "10"
 
-        #  只保留 _01 和 _02 试次
-        if trial not in ["01", "02"]:
+        #  只保留 _01试次
+        if trial not in ["01"]:
             continue
 
         if "Co" in subject_id:
