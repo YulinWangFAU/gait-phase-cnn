@@ -105,7 +105,7 @@ for train_idx, val_idx in kf.split(np.arange(len(dataset))):
     train_loader = DataLoader(train_subset, batch_size=Config.BATCH_SIZE, shuffle=True)
     val_loader = DataLoader(val_subset, batch_size=Config.BATCH_SIZE, shuffle=False)
 
-    model = CNNModelStable(fc_size=256, dropout_p=0.3).to(device)
+    model = CNNModel(fc_size=256, dropout_p=0.3).to(device)
     optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
     early_stopper = EarlyStopping(patience=Config.EARLY_STOPPING_PATIENCE, mode='max')
