@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2025/10/27 16:05
+Train CNN model on gait-phase heatmaps (PD vs HC)
+Supports Ga_01, Ju_01, Si_01, or All_01 (combined) training.
+Each mode includes both Co (control) and Pt (Parkinson's) subjects.
 
-@author: Yulin Wang
-@email: yulin.wang@fau.de
-"""
-# -*- coding: utf-8 -*-
-"""
-Train CNN model on combined gait-phase heatmaps (PD vs HC)
-Supports multiple preprocessing versions (baseline / pd_sensitive / smooth)
-and version-tagged dataset paths.
 Author: Yulin Wang
 Date: 2025-10-27
 """
@@ -18,6 +12,7 @@ import argparse
 import csv
 import os
 import glob
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -38,15 +33,20 @@ parser.add_argument('--version', type=str, required=True,
                     help='Preprocessing version: baseline | pd_sensitive | smooth')
 parser.add_argument('--win', type=int, default=0)
 parser.add_argument('--step', type=int, default=0)
+parser.add_argument('--exp_mode', type=str, default="All",
+                    choices=["Ga", "Ju", "Si", "All"],
+                    help="Experiment mode: Ga_01 | Ju_01 | Si_01 | All_01 (combined)")
 args = parser.parse_args()
 
 # === 初始化配置 ===
 Config.initialize()
 
+# === 时间戳标识 ===
+timestamp = time.strftime("%Y%m%d_%H%M", time.localtime())
+
 # === 搜索匹配的标签文件 ===
 label_pattern = os.path.join(Config.BASE_DIR, f"labels_{args.version}_*.csv")
 label_files = sorted(glob.glob(label_pattern), key=os.path.getmtime, reverse=True)
-
 if not label_files:
     raise FileNotFoundError(f"❌ 未找到匹配的标签文件: {label_pattern}\n请先运行 generate_heatmaps.py 生成该版本的热力图。")
 
@@ -60,64 +60,71 @@ Config.VERSION_TAG = args.version
 os.makedirs(Config.CHECKPOINT_DIR, exist_ok=True)
 os.makedirs(Config.TENSORBOARD_LOG_DIR, exist_ok=True)
 
-# === 加载标签文件 ===
+# === 加载并筛选标签文件 ===
 full_df = pd.read_csv(LABEL_CSV_PATH)
-condition = "_01"
+
+# 只保留 _01 文件（baseline）
+df = full_df[full_df['filename'].str.contains(r'_01\.')]
+
+mode = args.exp_mode
+if mode == "Ga":
+    df = df[df['filename'].str.contains(r'/Ga')]
+elif mode == "Ju":
+    df = df[df['filename'].str.contains(r'/Ju')]
+elif mode == "Si":
+    df = df[df['filename'].str.contains(r'/Si')]
+elif mode == "All":
+    df = df[df['filename'].str.contains(r'/(Ga|Ju|Si)')]
+
+if len(df) == 0:
+    raise ValueError(f"❌ No samples found for mode={mode} (_01 condition).")
+print(f"✅ 当前模式: {mode}_01, 样本数量: {len(df)}")
+
+# 保存筛选后的临时 CSV
+subset_csv = os.path.join(Config.BASE_DIR, f"labels_{mode}_01_{args.version}_{timestamp}.csv")
+df.to_csv(subset_csv, index=False)
+
+# === 训练准备 ===
+dataset = HeatmapDataset(subset_csv)
+total_size = len(dataset)
+val_size = int(total_size * Config.VAL_SPLIT)
+test_size = int(total_size * Config.TEST_SPLIT)
+train_size = total_size - val_size - test_size
+
+test_idx_path = os.path.join(Config.CHECKPOINT_DIR, f"test_indices_{mode}_{args.version}.pt")
+
+if os.path.exists(test_idx_path):
+    test_indices = torch.load(test_idx_path)
+    remaining_indices = [i for i in range(total_size) if i not in test_indices]
+    remaining_ds = Subset(dataset, remaining_indices)
+    val_size_new = int(len(remaining_indices) * Config.VAL_SPLIT / (1 - Config.TEST_SPLIT))
+    train_size_new = len(remaining_indices) - val_size_new
+    train_ds, val_ds = random_split(remaining_ds, [train_size_new, val_size_new])
+    test_ds = Subset(dataset, test_indices)
+else:
+    train_ds, val_ds, test_ds = random_split(dataset, [train_size, val_size, test_size])
+    torch.save(test_ds.indices, test_idx_path)
+
+train_loader = DataLoader(train_ds, batch_size=Config.BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(val_ds, batch_size=Config.BATCH_SIZE, shuffle=False)
+
+# === 模型、优化器、调度器 ===
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+criterion = nn.CrossEntropyLoss()
 fc_sizes = [128, 256, 512]
 
-# === 主训练循环 ===
 for fc_size in fc_sizes:
-    print(f"\n🚀 Training {args.version} version | fc_size={fc_size}")
+    print(f"\n🚀 Training mode={mode}_01 | version={args.version} | fc_size={fc_size}")
 
-    subset_df = full_df[full_df["filename"].str.contains(condition)]
-    if len(subset_df) == 0:
-        print(f"⚠️ No samples found for {condition}, skipping...")
-        continue
-    print(f"✅ Found {len(subset_df)} samples for {condition}")
-
-    subset_csv = os.path.join(Config.BASE_DIR,
-                              f"labels_All{condition}_{args.version}.csv")
-    subset_df.to_csv(subset_csv, index=False)
-
-    dataset = HeatmapDataset(subset_csv)
-    total_size = len(dataset)
-    val_size = int(total_size * Config.VAL_SPLIT)
-    test_size = int(total_size * Config.TEST_SPLIT)
-    train_size = total_size - val_size - test_size
-
-    # === 统一测试集划分（可重复实验） ===
-    test_idx_path = os.path.join(Config.CHECKPOINT_DIR,
-                                 f"test_indices_{args.version}.pt")
-
-    if os.path.exists(test_idx_path):
-        test_indices = torch.load(test_idx_path)
-        remaining_indices = [i for i in range(total_size) if i not in test_indices]
-        remaining_ds = Subset(dataset, remaining_indices)
-        val_size_new = int(len(remaining_indices) * Config.VAL_SPLIT / (1 - Config.TEST_SPLIT))
-        train_size_new = len(remaining_indices) - val_size_new
-        train_ds, val_ds = random_split(remaining_ds, [train_size_new, val_size_new])
-        test_ds = Subset(dataset, test_indices)
-    else:
-        train_ds, val_ds, test_ds = random_split(dataset, [train_size, val_size, test_size])
-        torch.save(test_ds.indices, test_idx_path)
-
-    train_loader = DataLoader(train_ds, batch_size=Config.BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=Config.BATCH_SIZE, shuffle=False)
-
-    # === 模型、优化器、调度器 ===
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = CNNModel(fc_size=fc_size).to(device)
-    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(),
                            lr=Config.LEARNING_RATE,
                            weight_decay=Config.WEIGHT_DECAY)
     scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
 
-    # === 保存路径 ===
-    best_model_path = os.path.join(
-        Config.CHECKPOINT_DIR,
-        f"best_All{condition}_fc{fc_size}_{args.version}.pth"
-    )
+    # === 加入时间戳的保存路径 ===
+    model_tag = f"{mode}_01_fc{fc_size}_{args.version}_{timestamp}"
+    best_model_path = os.path.join(Config.CHECKPOINT_DIR, f"best_{model_tag}.pth")
 
     early_stopper = EarlyStopping(
         patience=Config.EARLY_STOPPING_PATIENCE,
@@ -126,9 +133,9 @@ for fc_size in fc_sizes:
         path=best_model_path
     )
 
-    # === 日志目录 ===
+    # 日志目录
     log_dir = os.path.join(Config.TENSORBOARD_LOG_DIR,
-                           f"All{condition}_fc{fc_size}_{args.version}_win{args.win}_step{args.step}")
+                           f"{model_tag}_win{args.win}_step{args.step}")
     os.makedirs(log_dir, exist_ok=True)
     log_csv_path = os.path.join(log_dir, "training_log.csv")
     f_csv = open(log_csv_path, 'w', newline='', encoding='utf-8')
@@ -136,7 +143,6 @@ for fc_size in fc_sizes:
     writer_csv.writerow(['epoch', 'train_acc', 'val_acc', 'train_loss', 'val_loss', 'lr'])
     f_csv.flush()
 
-    # === 训练循环 ===
     best_val_acc = 0.0
     train_acc_list, val_acc_list, train_loss_list, val_loss_list = [], [], [], []
 
@@ -168,11 +174,6 @@ for fc_size in fc_sizes:
         train_loss_avg = train_loss / len(train_loader)
         val_loss_avg = val_loss / len(val_loader)
 
-        train_acc_list.append(train_acc)
-        val_acc_list.append(val_acc)
-        train_loss_list.append(train_loss_avg)
-        val_loss_list.append(val_loss_avg)
-
         print(f"Epoch {epoch + 1}/{Config.EPOCHS} | "
               f"Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} | "
               f"Train Loss: {train_loss_avg:.4f} | Val Loss: {val_loss_avg:.4f}")
@@ -203,18 +204,18 @@ for fc_size in fc_sizes:
     plt.plot(train_acc_list, label='Train Acc')
     plt.plot(val_acc_list, label='Val Acc')
     plt.xlabel('Epoch'); plt.ylabel('Accuracy'); plt.legend()
-    plt.title(f'Accuracy ({args.version}, fc={fc_size})')
-    plt.savefig(os.path.join(log_dir, f"fc{fc_size}_acc.png"))
+    plt.title(f'Accuracy ({model_tag})')
+    plt.savefig(os.path.join(log_dir, f"{model_tag}_acc.png"))
     plt.close()
 
     plt.figure()
     plt.plot(train_loss_list, label='Train Loss')
     plt.plot(val_loss_list, label='Val Loss')
     plt.xlabel('Epoch'); plt.ylabel('Loss'); plt.legend()
-    plt.title(f'Loss ({args.version}, fc={fc_size})')
-    plt.savefig(os.path.join(log_dir, f"fc{fc_size}_loss.png"))
+    plt.title(f'Loss ({model_tag})')
+    plt.savefig(os.path.join(log_dir, f"{model_tag}_loss.png"))
     plt.close()
 
     f_csv.close()
-    print(f"✅ Training finished for fc_size={fc_size}. Best Val Acc: {best_val_acc:.4f}")
+    print(f"✅ Training finished for {model_tag}. Best Val Acc: {best_val_acc:.4f}")
     print(f"✅ Best model saved to {best_model_path}")
