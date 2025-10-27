@@ -72,7 +72,8 @@ elif mode == "Ju":
 elif mode == "Si":
     df = df[df['filename'].str.contains(r'/Si')]
 elif mode == "All":
-    df = df[df['filename'].str.contains(r'/(Ga|Ju|Si)')]
+    df = df[df['filename'].str.contains('Ga') | df['filename'].str.contains('Ju') | df['filename'].str.contains('Si')]
+
 
 # === 左右脚筛选 ===
 if args.side in ["left", "right"]:
