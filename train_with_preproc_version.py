@@ -183,6 +183,12 @@ for fc_size in fc_sizes:
         train_loss_avg = train_loss / len(train_loader)
         val_loss_avg = val_loss / len(val_loader)
 
+        # 🔧 在这里添加：
+        train_acc_list.append(train_acc)
+        val_acc_list.append(val_acc)
+        train_loss_list.append(train_loss_avg)
+        val_loss_list.append(val_loss_avg)
+
         print(f"Epoch {epoch + 1}/{Config.EPOCHS} | "
               f"Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f} | "
               f"Train Loss: {train_loss_avg:.4f} | Val Loss: {val_loss_avg:.4f}")
