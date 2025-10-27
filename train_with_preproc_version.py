@@ -61,7 +61,7 @@ print(f"\n🧭 Using label file: {LABEL_CSV_PATH}")
 full_df = pd.read_csv(LABEL_CSV_PATH)
 
 # === 筛选 _01 条件 ===
-df = full_df[full_df['filename'].str.contains(r'_01\.')]
+df = full_df[full_df['filename'].str.contains('_01')]
 
 # === 实验模式筛选（Ga / Ju / Si / All）===
 mode = args.exp_mode
