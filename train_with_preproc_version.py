@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Train CNN model on gait-phase heatmaps (PD vs HC)
-Supports Ga_01, Ju_01, Si_01, or All_01 (combined) training.
-Each mode includes both Co (control) and Pt (Parkinson's) subjects.
-
+Supports:
+  - preprocessing version (baseline / pd_sensitive / smooth)
+  - side-specific training (left / right / both)
+  - experiment mode (Ga / Ju / Si / All)
 Author: Yulin Wang
 Date: 2025-10-27
 """
@@ -31,11 +32,14 @@ from models.cnn_model_paper import CNNModel
 parser = argparse.ArgumentParser()
 parser.add_argument('--version', type=str, required=True,
                     help='Preprocessing version: baseline | pd_sensitive | smooth')
-parser.add_argument('--win', type=int, default=0)
-parser.add_argument('--step', type=int, default=0)
+parser.add_argument('--side', type=str, default='both',
+                    choices=['left', 'right', 'both'],
+                    help='Foot side: left | right | both')
 parser.add_argument('--exp_mode', type=str, default="All",
                     choices=["Ga", "Ju", "Si", "All"],
                     help="Experiment mode: Ga_01 | Ju_01 | Si_01 | All_01 (combined)")
+parser.add_argument('--win', type=int, default=0)
+parser.add_argument('--step', type=int, default=0)
 args = parser.parse_args()
 
 # === 初始化配置 ===
@@ -48,24 +52,18 @@ timestamp = time.strftime("%Y%m%d_%H%M", time.localtime())
 label_pattern = os.path.join(Config.BASE_DIR, f"labels_{args.version}_*.csv")
 label_files = sorted(glob.glob(label_pattern), key=os.path.getmtime, reverse=True)
 if not label_files:
-    raise FileNotFoundError(f"❌ 未找到匹配的标签文件: {label_pattern}\n请先运行 generate_heatmaps.py 生成该版本的热力图。")
+    raise FileNotFoundError(f"❌ 未找到匹配的标签文件: {label_pattern}\n请先运行 generate_heatmaps.py 生成该版本热图。")
 
 LABEL_CSV_PATH = label_files[0]
 print(f"\n🧭 Using label file: {LABEL_CSV_PATH}")
 
-# === 自动版本标签 ===
-Config.VERSION_TAG = args.version
-
-# === 输出目录 ===
-os.makedirs(Config.CHECKPOINT_DIR, exist_ok=True)
-os.makedirs(Config.TENSORBOARD_LOG_DIR, exist_ok=True)
-
-# === 加载并筛选标签文件 ===
+# === 加载标签文件 ===
 full_df = pd.read_csv(LABEL_CSV_PATH)
 
-# 只保留 _01 文件（baseline）
+# === 筛选 _01 条件 ===
 df = full_df[full_df['filename'].str.contains(r'_01\.')]
 
+# === 实验模式筛选（Ga / Ju / Si / All）===
 mode = args.exp_mode
 if mode == "Ga":
     df = df[df['filename'].str.contains(r'/Ga')]
@@ -76,45 +74,49 @@ elif mode == "Si":
 elif mode == "All":
     df = df[df['filename'].str.contains(r'/(Ga|Ju|Si)')]
 
-if len(df) == 0:
-    raise ValueError(f"❌ No samples found for mode={mode} (_01 condition).")
-print(f"✅ 当前模式: {mode}_01, 样本数量: {len(df)}")
+# === 左右脚筛选 ===
+if args.side in ["left", "right"]:
+    df = df[df['filename'].str.contains(f"_{args.side}_")]
+    print(f"🦶 Training on {args.side.upper()} foot samples only.")
+elif args.side == "both":
+    print("🦶 Training on both feet combined dataset.")
 
-# 保存筛选后的临时 CSV
-subset_csv = os.path.join(Config.BASE_DIR, f"labels_{mode}_01_{args.version}_{timestamp}.csv")
+if len(df) == 0:
+    raise ValueError(f"❌ No samples found for mode={mode}, side={args.side}.")
+
+print(f"✅ 当前模式: {mode}_01 | side={args.side} | 样本数量: {len(df)}")
+
+# === 自动版本标签 ===
+Config.VERSION_TAG = f"{mode}_{args.side}_{args.version}"
+
+# === 输出路径 ===
+os.makedirs(Config.CHECKPOINT_DIR, exist_ok=True)
+os.makedirs(Config.TENSORBOARD_LOG_DIR, exist_ok=True)
+
+# === 保存筛选后的临时 CSV ===
+subset_csv = os.path.join(Config.BASE_DIR,
+                          f"labels_{mode}_01_{args.side}_{args.version}_{timestamp}.csv")
 df.to_csv(subset_csv, index=False)
 
-# === 训练准备 ===
+# === 构建数据集与划分 ===
 dataset = HeatmapDataset(subset_csv)
 total_size = len(dataset)
 val_size = int(total_size * Config.VAL_SPLIT)
 test_size = int(total_size * Config.TEST_SPLIT)
 train_size = total_size - val_size - test_size
 
-test_idx_path = os.path.join(Config.CHECKPOINT_DIR, f"test_indices_{mode}_{args.version}.pt")
-
-if os.path.exists(test_idx_path):
-    test_indices = torch.load(test_idx_path)
-    remaining_indices = [i for i in range(total_size) if i not in test_indices]
-    remaining_ds = Subset(dataset, remaining_indices)
-    val_size_new = int(len(remaining_indices) * Config.VAL_SPLIT / (1 - Config.TEST_SPLIT))
-    train_size_new = len(remaining_indices) - val_size_new
-    train_ds, val_ds = random_split(remaining_ds, [train_size_new, val_size_new])
-    test_ds = Subset(dataset, test_indices)
-else:
-    train_ds, val_ds, test_ds = random_split(dataset, [train_size, val_size, test_size])
-    torch.save(test_ds.indices, test_idx_path)
-
+train_ds, val_ds, test_ds = random_split(dataset, [train_size, val_size, test_size])
 train_loader = DataLoader(train_ds, batch_size=Config.BATCH_SIZE, shuffle=True)
 val_loader = DataLoader(val_ds, batch_size=Config.BATCH_SIZE, shuffle=False)
 
-# === 模型、优化器、调度器 ===
+# === 模型、优化器等 ===
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 criterion = nn.CrossEntropyLoss()
 fc_sizes = [128, 256, 512]
 
+# === 主训练循环 ===
 for fc_size in fc_sizes:
-    print(f"\n🚀 Training mode={mode}_01 | version={args.version} | fc_size={fc_size}")
+    print(f"\n🚀 Training mode={mode}_01 | side={args.side} | version={args.version} | fc_size={fc_size}")
 
     model = CNNModel(fc_size=fc_size).to(device)
     optimizer = optim.Adam(model.parameters(),
@@ -122,8 +124,8 @@ for fc_size in fc_sizes:
                            weight_decay=Config.WEIGHT_DECAY)
     scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=5)
 
-    # === 加入时间戳的保存路径 ===
-    model_tag = f"{mode}_01_fc{fc_size}_{args.version}_{timestamp}"
+    # === 保存路径 ===
+    model_tag = f"{mode}_01_fc{fc_size}_{args.side}_{args.version}_{timestamp}"
     best_model_path = os.path.join(Config.CHECKPOINT_DIR, f"best_{model_tag}.pth")
 
     early_stopper = EarlyStopping(
@@ -133,7 +135,7 @@ for fc_size in fc_sizes:
         path=best_model_path
     )
 
-    # 日志目录
+    # === 日志路径 ===
     log_dir = os.path.join(Config.TENSORBOARD_LOG_DIR,
                            f"{model_tag}_win{args.win}_step{args.step}")
     os.makedirs(log_dir, exist_ok=True)
@@ -141,8 +143,8 @@ for fc_size in fc_sizes:
     f_csv = open(log_csv_path, 'w', newline='', encoding='utf-8')
     writer_csv = csv.writer(f_csv)
     writer_csv.writerow(['epoch', 'train_acc', 'val_acc', 'train_loss', 'val_loss', 'lr'])
-    f_csv.flush()
 
+    # === 训练循环 ===
     best_val_acc = 0.0
     train_acc_list, val_acc_list, train_loss_list, val_loss_list = [], [], [], []
 
@@ -191,12 +193,12 @@ for fc_size in fc_sizes:
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(model.state_dict(), best_model_path)
-            print(f"🌟 Saved new best model (Val Acc = {val_acc:.4f})")
+            print(f"🌟 New best model saved (Val Acc = {val_acc:.4f})")
 
         scheduler.step(val_acc)
         early_stopper(val_acc, model)
         if early_stopper.early_stop:
-            print(f"🛑 Early stopping at epoch {epoch + 1}.")
+            print(f"🛑 Early stopping at epoch {epoch + 1}")
             break
 
     # === 保存曲线 ===
