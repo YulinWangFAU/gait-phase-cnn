@@ -84,7 +84,13 @@ elif args.side == "both":
 if len(df) == 0:
     raise ValueError(f"❌ No samples found for mode={mode}, side={args.side}.")
 
-print(f"✅ 当前模式: {mode}_01 | side={args.side} | 样本数量: {len(df)}")
+# 🆕 === 统计 Co vs Pt 数量 ===
+n_co = df['filename'].str.contains('Co').sum()
+n_pt = df['filename'].str.contains('Pt').sum()
+total = len(df)
+print(f"✅ 当前模式: {mode}_01 | side={args.side} | 样本总数: {total}")
+print(f"   ├── Control (Co): {n_co}")
+print(f"   └── Parkinson (Pt): {n_pt}")
 
 # === 自动版本标签 ===
 Config.VERSION_TAG = f"{mode}_{args.side}_{args.version}"
