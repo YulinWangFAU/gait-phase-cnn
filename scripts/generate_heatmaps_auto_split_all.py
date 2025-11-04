@@ -10,8 +10,9 @@ for all combinations of:
     - task_mode: normal / dual
 Automatically splits train/val/test (80/10/10),
 and saves CSV labels with all metadata.
+
 # === Path Layout ===
-# Raw input files:     /home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data
+# Raw input files:     /home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data/raw
 # Generated heatmaps:  /home/woody/iwi5/iwi5325h/gaitphasecnn_middle_data
 # Project code:        /home/hpc/iwi5/iwi5325h/gait-phase-cnn
 # ====================
@@ -28,10 +29,10 @@ from matplotlib import pyplot as plt, cm
 import random
 
 # ============ CONFIGURATION ============
-# 输入数据路径（保持原样）
-DATA_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data"
-# 输出目录基路径（放在你的项目中）
+DATA_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data/raw"
 OUT_BASE = "/home/woody/iwi5/iwi5325h/gaitphasecnn_middle_data"
+os.makedirs(OUT_BASE, exist_ok=True)
+
 SIGMA = 8
 INTERP_POINTS = 2000
 BINS = 248
@@ -46,9 +47,6 @@ METHODS = ["rawphase", "tfs"]
 SIGNAL_TYPES = ["left", "right", "both"]
 EXPERIMENTS = ["Ga", "Ju", "Si"]
 TASK_MODES = ["normal", "dual"]  # normal: _01–_09, dual: _10 only
-
-# ======================================
-
 
 # ---------- Helper Functions ----------
 
@@ -109,8 +107,6 @@ def save_heatmap_image(heatmap, save_path):
     plt.imsave(save_path, heatmap, cmap=cm.hot, origin='lower')
 
 
-# ---------- Split Function ----------
-
 def split_subjects(subjects):
     n = len(subjects)
     random.shuffle(subjects)
@@ -122,85 +118,96 @@ def split_subjects(subjects):
     return train, val, test
 
 
-# ---------- Main Generation Loop ----------
+# ---------- Main Process ----------
 
-for EXPERIMENT in EXPERIMENTS:
-    # Select files
-    all_files = [f for f in os.listdir(DATA_DIR) if f.startswith(EXPERIMENT) and f.endswith(".txt")]
+def main():
+    print("🚀 Starting heatmap generation...")
+    print(f"Input folder: {DATA_DIR}")
+    print(f"Output base:  {OUT_BASE}\n")
 
-    for TASK_MODE in TASK_MODES:
-        if TASK_MODE == "normal":
-            selected_files = [f for f in all_files if "_10" not in f]
-        else:
-            selected_files = [f for f in all_files if "_10" in f]
+    all_files = [f for f in os.listdir(DATA_DIR) if f.lower().endswith(".txt")]
+    print(f"Total .txt files found: {len(all_files)}\n")
 
-        if len(selected_files) == 0:
+    for EXPERIMENT in EXPERIMENTS:
+        exp_files = [f for f in all_files if f.startswith(EXPERIMENT)]
+        if len(exp_files) == 0:
+            print(f"⚠️ No files found for experiment {EXPERIMENT}, skipping.")
             continue
 
-        subjects = sorted(list(set([f[0:6] for f in selected_files])))  # e.g., GaCo01
-        train_subj, val_subj, test_subj = split_subjects(subjects)
+        for TASK_MODE in TASK_MODES:
+            if TASK_MODE == "normal":
+                selected_files = [f for f in exp_files if "_10" not in f]
+            else:
+                selected_files = [f for f in exp_files if "_10" in f]
 
-        for METHOD in METHODS:
-            for SIGNAL_TYPE in SIGNAL_TYPES:
+            if len(selected_files) == 0:
+                continue
 
-                # output paths
-                OUT_DIR = os.path.join(
-                    OUT_BASE,
-                    f"heatmaps_{METHOD}_{SIGNAL_TYPE}_σ{SIGMA}_i{INTERP_POINTS}_{EXPERIMENT}_{TASK_MODE}"
-                )
-                CSV_PATH = os.path.join(
-                    OUT_BASE,
-                    f"labels_{METHOD}_{SIGNAL_TYPE}_σ{SIGMA}_i{INTERP_POINTS}_{EXPERIMENT}_{TASK_MODE}.csv"
-                )
+            subjects = sorted(list(set([f[0:6] for f in selected_files])))  # e.g., GaCo01
+            train_subj, val_subj, test_subj = split_subjects(subjects)
 
-                os.makedirs(OUT_DIR, exist_ok=True)
-                for split in ["train", "val", "test"]:
-                    os.makedirs(os.path.join(OUT_DIR, split), exist_ok=True)
+            for METHOD in METHODS:
+                for SIGNAL_TYPE in SIGNAL_TYPES:
+                    OUT_DIR = os.path.join(
+                        OUT_BASE,
+                        f"heatmaps_{METHOD}_{SIGNAL_TYPE}_σ{SIGMA}_i{INTERP_POINTS}_{EXPERIMENT}_{TASK_MODE}"
+                    )
+                    CSV_PATH = os.path.join(
+                        OUT_BASE,
+                        f"labels_{METHOD}_{SIGNAL_TYPE}_σ{SIGMA}_i{INTERP_POINTS}_{EXPERIMENT}_{TASK_MODE}.csv"
+                    )
 
-                # write readme
-                with open(os.path.join(OUT_DIR, "README.txt"), "w") as f:
-                    f.write(f"Method: {METHOD}\n")
-                    f.write(f"Signal type: {SIGNAL_TYPE}\n")
-                    f.write(f"Sigma (Gaussian): {SIGMA}\n")
-                    f.write(f"Interpolation points: {INTERP_POINTS}\n")
-                    f.write(f"Experiment: {EXPERIMENT}\n")
-                    f.write(f"Task mode: {TASK_MODE}\n")
-                    f.write(f"Sampling rate: 100 Hz\n")
+                    os.makedirs(OUT_DIR, exist_ok=True)
+                    for split in ["train", "val", "test"]:
+                        os.makedirs(os.path.join(OUT_DIR, split), exist_ok=True)
 
-                # record metadata
-                records = []
+                    with open(os.path.join(OUT_DIR, "README.txt"), "w") as f:
+                        f.write(f"Method: {METHOD}\n")
+                        f.write(f"Signal type: {SIGNAL_TYPE}\n")
+                        f.write(f"Sigma (Gaussian): {SIGMA}\n")
+                        f.write(f"Interpolation points: {INTERP_POINTS}\n")
+                        f.write(f"Experiment: {EXPERIMENT}\n")
+                        f.write(f"Task mode: {TASK_MODE}\n")
+                        f.write(f"Sampling rate: 100 Hz\n")
 
-                for fname in selected_files:
-                    subject_id = fname[:6]
-                    group = "Co" if "Co" in fname else "Pt"
-                    walk_number = fname.split("_")[-1].replace(".txt", "")
+                    records = []
+                    for fname in selected_files:
+                        subject_id = fname[:6]
+                        group = "Co" if "Co" in fname else "Pt"
+                        walk_number = fname.split("_")[-1].replace(".txt", "")
 
-                    if subject_id in train_subj:
-                        split = "train"
-                    elif subject_id in val_subj:
-                        split = "val"
-                    elif subject_id in test_subj:
-                        split = "test"
-                    else:
-                        continue
+                        if subject_id in train_subj:
+                            split = "train"
+                        elif subject_id in val_subj:
+                            split = "val"
+                        elif subject_id in test_subj:
+                            split = "test"
+                        else:
+                            continue
 
-                    file_path = os.path.join(DATA_DIR, fname)
-                    try:
-                        _, sensors = read_gait_data(file_path)
-                        signal = get_gait_signal(sensors, SIGNAL_TYPE)
-                        heatmap = get_heat(signal, method=METHOD, sigma=SIGMA,
-                                           bins=BINS, interp_points=INTERP_POINTS)
-                        save_path = os.path.join(OUT_DIR, split, fname.replace(".txt", ".png"))
-                        save_heatmap_image(heatmap, save_path)
-                        records.append([fname.replace(".txt", ".png"), subject_id, group,
-                                        EXPERIMENT, SIGNAL_TYPE, METHOD, walk_number,
-                                        split, TASK_MODE])
-                    except Exception as e:
-                        print(f"⚠️ Error processing {fname}: {e}")
+                        file_path = os.path.join(DATA_DIR, fname)
+                        try:
+                            _, sensors = read_gait_data(file_path)
+                            signal = get_gait_signal(sensors, SIGNAL_TYPE)
+                            heatmap = get_heat(signal, method=METHOD, sigma=SIGMA,
+                                               bins=BINS, interp_points=INTERP_POINTS)
+                            save_path = os.path.join(OUT_DIR, split, fname.replace(".txt", ".png"))
+                            save_heatmap_image(heatmap, save_path)
+                            records.append([fname.replace(".txt", ".png"), subject_id, group,
+                                            EXPERIMENT, SIGNAL_TYPE, METHOD, walk_number,
+                                            split, TASK_MODE])
+                        except Exception as e:
+                            print(f"⚠️ Error processing {fname}: {e}")
 
-                df = pd.DataFrame(records, columns=[
-                    "filename", "subject_id", "group", "experiment",
-                    "signal_type", "method", "walk_number", "split", "task_mode"
-                ])
-                df.to_csv(CSV_PATH, index=False)
-                print(f"✅ Finished {OUT_DIR} ({len(records)} heatmaps)")
+                    df = pd.DataFrame(records, columns=[
+                        "filename", "subject_id", "group", "experiment",
+                        "signal_type", "method", "walk_number", "split", "task_mode"
+                    ])
+                    df.to_csv(CSV_PATH, index=False)
+
+                    print(f"✅ [{EXPERIMENT}-{TASK_MODE}-{METHOD}-{SIGNAL_TYPE}] "
+                          f"-> {len(records)} heatmaps saved.\n")
+
+
+if __name__ == "__main__":
+    main()
