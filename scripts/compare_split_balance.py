@@ -1,16 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2025/11/6 00:30
-
-@author: Yulin Wang
-@email: yulin.wang@fau.de
-"""
-# -*- coding: utf-8 -*-
-"""
 compare_split_balance.py
 ------------------------
 Compare the distribution of PD (Pt) vs HC (Co)
-between random-split and balanced-split CSV label files.
+between random-split and balanced-split CSV label files,
+and save a global summary table (CSV).
 
 Author: Yulin Wang
 """
@@ -29,7 +23,7 @@ def load_csvs(base_dir):
     csv_paths = [os.path.join(base_dir, f) for f in csv_files]
     return {os.path.basename(p): pd.read_csv(p) for p in csv_paths}
 
-def plot_comparison(df_old, df_new, title, save_path):
+def plot_comparison(df_old, df_new, title, save_path, summary_rows):
     splits = ["train", "val", "test"]
     groups = ["Co", "Pt"]
 
@@ -50,12 +44,15 @@ def plot_comparison(df_old, df_new, title, save_path):
         axes[i].set_title(split.capitalize())
         axes[i].legend()
 
-        # Print comparison
-        print(f"\n=== {title} | {split.upper()} ===")
-        print("Old split:")
-        print(old_counts)
-        print("Balanced split:")
-        print(new_counts)
+        # Add to summary table
+        summary_rows.append({
+            "dataset": title,
+            "split": split,
+            "old_Co": old_counts["Co"],
+            "old_Pt": old_counts["Pt"],
+            "new_Co": new_counts["Co"],
+            "new_Pt": new_counts["Pt"]
+        })
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.savefig(save_path)
@@ -65,8 +62,9 @@ def main():
     df_old_all = load_csvs(OLD_DIR)
     df_new_all = load_csvs(NEW_DIR)
 
+    summary_rows = []
+
     for name_new, df_new in df_new_all.items():
-        # 找到对应的旧版本（不带 _balanced）
         name_old = name_new.replace("_balanced", "")
         if name_old not in df_old_all:
             print(f"⚠️ Skipping {name_new} — no matching old version found.")
@@ -75,9 +73,15 @@ def main():
         df_old = df_old_all[name_old]
         title = name_new.replace(".csv", "")
         save_path = os.path.join(OUT_DIR, f"{title}_comparison.png")
-        plot_comparison(df_old, df_new, title, save_path)
+        plot_comparison(df_old, df_new, title, save_path, summary_rows)
 
-    print(f"\n✅ All comparisons saved to: {OUT_DIR}")
+    # Save summary table
+    summary_df = pd.DataFrame(summary_rows)
+    summary_csv = os.path.join(OUT_DIR, "split_balance_summary.csv")
+    summary_df.to_csv(summary_csv, index=False)
+
+    print(f"\n✅ All comparisons done.")
+    print(f"📄 Global summary saved to: {summary_csv}")
 
 if __name__ == "__main__":
     main()
