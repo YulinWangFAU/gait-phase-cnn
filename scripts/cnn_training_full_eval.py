@@ -70,9 +70,12 @@ def train_one(csv_path, img_dir, out_dir, balance=False, epochs=100, batch_size=
     if balance:
         train_labels = np.array([1 if g == "Pt" else 0 for g in df[df["split"] == "train"]["group"]])
         class_weights = compute_class_weight("balanced", classes=np.array([0, 1]), y=train_labels)
-        class_weights = torch.tensor(class_weights, dtype=torch.float).to(DEVICE)
-        sample_weights = np.array([class_weights[int(l)] for l in train_labels])
+        class_weights = torch.tensor(class_weights, dtype=torch.float)
+        # ✅ 转 CPU float 列表
+        sample_weights = np.array([class_weights[int(l)].item() for l in train_labels])
         sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
+        # ✅ 训练时用 GPU loss
+        class_weights = class_weights.to(DEVICE)
         train_loader = DataLoader(train_ds, batch_size=batch_size, sampler=sampler)
         criterion = nn.CrossEntropyLoss(weight=class_weights)
     else:
