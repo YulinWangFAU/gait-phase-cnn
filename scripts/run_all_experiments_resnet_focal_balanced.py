@@ -21,9 +21,9 @@ Author: Yulin Wang
 import os, subprocess
 
 # ========== PATH CONFIGURATION ==========
-BASE_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_middle_data_balanced"
+BASE_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_middle_data_balanced_g12_i5000"
 SCRIPT_PATH = "/home/hpc/iwi5/iwi5325h/gait-phase-cnn/scripts/cnn_training_resnet_focal.py"
-RESULTS_BASE = "/home/hpc/iwi5/iwi5325h/gait-phase-cnn/results_resnet_focal"
+RESULTS_BASE = "/home/hpc/iwi5/iwi5325h/gait-phase-cnn/results_resnet_focal_g12_i5000"
 LOG_DIR = os.path.join(RESULTS_BASE, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
