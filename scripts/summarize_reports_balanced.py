@@ -3,8 +3,8 @@ import re
 import pandas as pd
 
 # ======== CONFIGURATION ========
-BASE_DIR = "/home/hpc/iwi5/iwi5325h/gait-phase-cnn/results_all_balanced"
-OUT_PATH = os.path.join(BASE_DIR, "results_summary_balanced.csv")
+BASE_DIR = "/home/hpc/iwi5/iwi5325h/gait-phase-cnn/results_resnet_focal"
+OUT_PATH = os.path.join(BASE_DIR, "results_resnet_focal_summary_balanced.csv")
 
 rows = []
 
