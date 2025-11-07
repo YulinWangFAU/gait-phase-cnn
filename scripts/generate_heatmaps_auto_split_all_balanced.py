@@ -20,11 +20,11 @@ import random
 
 # ============ CONFIGURATION ============
 DATA_DIR = "/home/woody/iwi5/iwi5325h/gaitphasecnn_raw_data/raw"
-OUT_BASE = "/home/woody/iwi5/iwi5325h/gaitphasecnn_middle_data_balanced_g12_i5000"
+OUT_BASE = "/home/woody/iwi5/iwi5325h/gaitphasecnn_middle_data_balanced_g10_i4000"
 os.makedirs(OUT_BASE, exist_ok=True)
 
-SIGMA = 12
-INTERP_POINTS = 5000
+SIGMA = 10
+INTERP_POINTS = 4000
 BINS = 248
 PAD = 8
 SEED = 42
