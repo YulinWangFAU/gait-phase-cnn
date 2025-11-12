@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-run_all_calvocnn_multi_gsigma.py
+run_all_calvocnn_full.py
 ---------------------------------
 Batch run Calvo-Ariza CNN for multiple σ (Gaussian) and interpolation (i) configurations.
 Each subdirectory will contain all heatmap experiments (rawphase/tfs, left/right/both, Ga/Ju/Si, dual/normal)
