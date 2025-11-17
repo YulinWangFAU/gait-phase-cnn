@@ -1,13 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2025/11/17 16:08
-
-@author: Yulin Wang
-@email: yulin.wang@fau.de
-"""
-# -*- coding: utf-8 -*-
-"""
-run_all_calvocnn_full_old.py
+run_all_calvocnn_full.py
 Batch CalvoCNN runner using FIXED split.json.
 """
 

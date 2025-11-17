@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2025/11/17 16:05
-
-@author: Yulin Wang
-@email: yulin.wang@fau.de
-"""
-# -*- coding: utf-8 -*-
-"""
 cnn_phaseplot_model.py
 Calvo-Ariza (2020) CNN for Phase Plot Classification
 Updated:
@@ -289,6 +282,7 @@ def test_eval(model, loader, out_dir):
 
     print(f"🎯 Test AUC = {roc_auc:.4f}")
     print(f"Results saved in: {out_dir}")
+
 
 
 # ---------------- Main ----------------
