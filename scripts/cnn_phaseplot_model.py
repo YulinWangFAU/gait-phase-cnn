@@ -141,9 +141,22 @@ def train_one(csv_path, img_dir, out_dir,
 
     # -------------- loader --------------
     if balance:
-        train_labels = np.array([1 if g=="Pt" else 0 for g in train_ds.data["group"]])
-        class_weight = compute_class_weight("balanced", [0,1], train_labels)
+        train_labels = np.array([1 if g == "Pt" else 0 for g in train_ds.data["group"]])
+
+        # ------ sklearn class_weight ------
+        class_weight = compute_class_weight(
+            class_weight="balanced",
+            classes=np.array([0, 1]),
+            y=train_labels
+        )
+        # 转成 tensor
         class_weight = torch.tensor(class_weight, dtype=torch.float).to(DEVICE)
+
+        # ------ PRINT class weights ------
+        print(f"[INFO] Class weights = Co:{class_weight[0].item():.4f}, Pt:{class_weight[1].item():.4f}")
+        print(f"[INFO] #Train Co={np.sum(train_labels == 0)}, #Train Pt={np.sum(train_labels == 1)}")
+
+        # ------ sampler ------
         sample_weights = np.array([class_weight[int(l)].item() for l in train_labels])
         sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
         train_loader = DataLoader(train_ds, batch_size=batch_size, sampler=sampler)
@@ -210,12 +223,35 @@ def train_one(csv_path, img_dir, out_dir,
             break
 
     # -------- curves --------
-    plt.figure(); plt.plot(train_loss_hist); plt.plot(val_loss_hist); plt.title("Loss")
+    # ----------- Loss Curve (Improved) -----------
+    plt.figure(figsize=(6, 4))
+    plt.plot(train_loss_hist, label="Train Loss", linewidth=2)
+    plt.plot(val_loss_hist, label="Validation Loss", linewidth=2)
+
+    plt.xlabel("Epoch", fontsize=12)
+    plt.ylabel("Loss", fontsize=12)
+    plt.title("Loss Curve", fontsize=14, fontweight='bold')
+    plt.grid(alpha=0.3)
+    plt.legend()
+
+    plt.tight_layout()
     plt.savefig(os.path.join(out_dir, "loss_curve.png"))
+    plt.close()
 
-    plt.figure(); plt.plot(train_acc_hist); plt.plot(val_acc_hist); plt.title("Accuracy")
+    # ----------- Accuracy Curve (Improved) -----------
+    plt.figure(figsize=(6, 4))
+    plt.plot(train_acc_hist, label="Train Accuracy", linewidth=2)
+    plt.plot(val_acc_hist, label="Validation Accuracy", linewidth=2)
+
+    plt.xlabel("Epoch", fontsize=12)
+    plt.ylabel("Accuracy", fontsize=12)
+    plt.title("Accuracy Curve", fontsize=14, fontweight='bold')
+    plt.grid(alpha=0.3)
+    plt.legend()
+
+    plt.tight_layout()
     plt.savefig(os.path.join(out_dir, "acc_curve.png"))
-
+    plt.close()
     # ============ Evaluate =============
     model.load_state_dict(torch.load(os.path.join(out_dir, "best_model.pt")))
     test_eval(model, test_loader, out_dir)
@@ -263,16 +299,20 @@ def test_eval(model, loader, out_dir):
     fpr, tpr, _ = roc_curve(y_true, y_prob)
     roc_auc = auc(fpr, tpr)
 
-    plt.figure(figsize=(5,4))        # <--- new
-    plt.plot(fpr, tpr, label=f"AUC={roc_auc:.2f}")
-    plt.plot([0, 1], [0, 1], 'k--', alpha=0.5)
-    plt.title("ROC Curve")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.legend()
+    # ----------- ROC Curve (Improved) -----------
+    plt.figure(figsize=(6, 4))
+    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}", linewidth=2)
+    plt.plot([0, 1], [0, 1], 'k--', linewidth=1, alpha=0.7)
+
+    plt.xlabel("False Positive Rate", fontsize=12)
+    plt.ylabel("True Positive Rate", fontsize=12)
+    plt.title("ROC Curve", fontsize=14, fontweight='bold')
+    plt.legend(fontsize=12)
+    plt.grid(alpha=0.3)
+
     plt.tight_layout()
     plt.savefig(os.path.join(out_dir, "roc_curve.png"))
-    plt.close()                      # <--- new
+    plt.close()                    # <--- new
 
 
     # ============ Classification Report ===============
