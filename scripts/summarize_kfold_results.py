@@ -1,139 +1,114 @@
 # -*- coding: utf-8 -*-
 """
-Created on 2025/11/19 15:21
-
-@author: Yulin Wang
-@email: yulin.wang@fau.de
-"""
-
-# -*- coding: utf-8 -*-
-"""
 summarize_kfold_results.py
-----------------------------------------------
-Automatically summarize all 10-fold results:
-- For each (sigma, method, signal, mode, fc_dim)
-- Compute mean ACC, mean AUC, std ACC, std AUC
-- Export a summary CSV for easy use in a paper
+----------------------------------------
+Collect AUC / Accuracy from all folds:
+- 4 experiments: GaNormal, GaDual, JuNormal, SiNormal
+- 3 σ groups: sigma8_i2000_kfold, sigma10_i4000_kfold, sigma12_i5000_kfold
+- 6 methods: rawphase/tfs × left/right/both
+- 3 FC sizes: 128 / 256 / 512
 
-Directory expected:
-results_kfold/
-    sigmaX_iY_kfold/
-        rawphase_left/
-            fold0/baseline_fc128/report.txt
+Generates summary_kfold_results.csv
 """
 
 import os
 import re
-import pandas as pd
 import numpy as np
+import pandas as pd
 
+BASE = "/home/woody/iwi5/iwi5325h/gaitphasecnn_middle_data_kfold_experiments"
 
-RESULT_ROOT = "/home/hpc/iwi5/iwi5325h/gait-phase-cnn/results_kfold"
-
-OUT_CSV = os.path.join(RESULT_ROOT, "summary_kfold_results.csv")
-
-# Regex to extract metrics from report.txt
-ACC_RE = re.compile(r"accuracy\s*=\s*([0-9.]+)", re.IGNORECASE)
-AUC_RE = re.compile(r"AUC[:=]\s*([0-9.]+)", re.IGNORECASE)
-
+EXPERIMENTS = ["GaNormal", "GaDual", "JuNormal", "SiNormal"]
+PARAM_GROUPS = [
+    "sigma8_i2000_kfold",
+    "sigma10_i4000_kfold",
+    "sigma12_i5000_kfold",
+]
+METHODS = [
+    "rawphase_left",
+    "rawphase_right",
+    "rawphase_both",
+    "tfs_left",
+    "tfs_right",
+    "tfs_both",
+]
+FC_SIZES = [128, 256, 512]
 
 def extract_metrics(report_path):
-    """Parse report.txt to find ACC and AUC."""
+    """Extract Accuracy and AUC from report.txt"""
     if not os.path.exists(report_path):
         return None, None
 
-    with open(report_path, "r") as f:
-        txt = f.read()
+    acc, auc_val = None, None
 
-    # Find accuracy (from classification report)
-    acc = None
-    m_acc = re.search(r"accuracy\s*[\s:]*([0-9.]+)", txt, flags=re.I)
+    with open(report_path, "r") as f:
+        text = f.read()
+
+    # Extract accuracy from classification report "accuracy" line
+    m_acc = re.search(r"accuracy\s+([\d\.]+)", text)
     if m_acc:
         acc = float(m_acc.group(1))
 
-    # Find AUC
-    auc = None
-    m_auc = AUC_RE.search(txt)
+    # Extract AUC=0.8765
+    m_auc = re.search(r"AUC=([\d\.]+)", text)
     if m_auc:
-        auc = float(m_auc.group(1))
+        auc_val = float(m_auc.group(1))
 
-    return acc, auc
+    return acc, auc_val
 
 
 def main():
-    rows = []
+    records = []
 
-    for sigma_dir in sorted(os.listdir(RESULT_ROOT)):
-        sigma_path = os.path.join(RESULT_ROOT, sigma_dir)
-        if not os.path.isdir(sigma_path):
-            continue
+    for exp in EXPERIMENTS:
+        for param in PARAM_GROUPS:
+            for method in METHODS:
+                for fc in FC_SIZES:
 
-        for ms_dir in sorted(os.listdir(sigma_path)):
-            ms_path = os.path.join(sigma_path, ms_dir)
-            if not os.path.isdir(ms_path):
-                continue
+                    fold_acc = []
+                    fold_auc = []
 
-            method, signal = ms_dir.split("_")[0], ms_dir.split("_")[1]
-
-            for fold_dir in sorted(os.listdir(ms_path)):
-                fold_path = os.path.join(ms_path, fold_dir)
-                if not fold_path.endswith("fold0") and not fold_path.endswith("fold1") \
-                   and not fold_path.endswith("fold2") and not fold_path.endswith("fold3") \
-                   and not fold_path.endswith("fold4") and not fold_path.endswith("fold5") \
-                   and not fold_path.endswith("fold6") and not fold_path.endswith("fold7") \
-                   and not fold_path.endswith("fold8") and not fold_path.endswith("fold9"):
-                    continue
-
-                for mode_fc in sorted(os.listdir(fold_path)):
-                    exp_path = os.path.join(fold_path, mode_fc)
-                    report_path = os.path.join(exp_path, "report.txt")
-
-                    mode = mode_fc.split("_")[0]
-                    fc_dim = mode_fc.split("_")[1].replace("fc", "")
-
-                    acc, auc = extract_metrics(report_path)
-                    if acc is None or auc is None:
-                        print(f"⚠ Missing metrics: {report_path}")
+                    method_dir = os.path.join(BASE, exp, param, method)
+                    res_dir = os.path.join(method_dir, f"results_fc{fc}")
+                    if not os.path.exists(res_dir):
                         continue
 
-                    rows.append([
-                        sigma_dir,
+                    for fold in range(10):
+                        report_path = os.path.join(
+                            res_dir, f"fold{fold}", "report.txt"
+                        )
+                        acc, auc_val = extract_metrics(report_path)
+                        if acc is not None and auc_val is not None:
+                            fold_acc.append(acc)
+                            fold_auc.append(auc_val)
+
+                    if len(fold_acc) == 0:
+                        continue
+
+                    records.append([
+                        exp,
+                        param,
                         method,
-                        signal,
-                        mode,
-                        fc_dim,
-                        fold_dir,
-                        acc,
-                        auc
+                        fc,
+                        len(fold_acc),
+                        np.mean(fold_acc),
+                        np.std(fold_acc),
+                        np.mean(fold_auc),
+                        np.std(fold_auc)
                     ])
 
-    df = pd.DataFrame(rows, columns=[
-        "sigma_group",
-        "method",
-        "signal",
-        "mode",
-        "fc_dim",
-        "fold",
-        "acc",
-        "auc"
+    df = pd.DataFrame(records, columns=[
+        "Experiment", "ParamGroup", "Method", "FC",
+        "NumFolds",
+        "Acc_mean", "Acc_std",
+        "AUC_mean", "AUC_std"
     ])
 
-    # Aggregate for final summary
-    summary = df.groupby(
-        ["sigma_group", "method", "signal", "mode", "fc_dim"]
-    ).agg({
-        "acc": ["mean", "std"],
-        "auc": ["mean", "std"]
-    })
-
-    summary.columns = ["acc_mean", "acc_std", "auc_mean", "auc_std"]
-    summary = summary.reset_index()
-
-    summary.to_csv(OUT_CSV, index=False)
-
-    print("\n🎉 Summary complete!")
-    print(f"📄 Saved to: {OUT_CSV}\n")
-    print(summary.head())
+    out_csv = "summary_kfold_results.csv"
+    df.to_csv(out_csv, index=False)
+    print("\n=====================================")
+    print("  ✅ Summary saved:", out_csv)
+    print("=====================================\n")
 
 
 if __name__ == "__main__":
