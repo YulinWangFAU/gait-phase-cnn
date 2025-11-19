@@ -1,114 +1,154 @@
 # -*- coding: utf-8 -*-
 """
 summarize_kfold_results.py
-----------------------------------------
-Collect AUC / Accuracy from all folds:
-- 4 experiments: GaNormal, GaDual, JuNormal, SiNormal
-- 3 σ groups: sigma8_i2000_kfold, sigma10_i4000_kfold, sigma12_i5000_kfold
-- 6 methods: rawphase/tfs × left/right/both
-- 3 FC sizes: 128 / 256 / 512
-
-Generates summary_kfold_results.csv
+--------------------------------------------
+Summarizes 10-fold results for all experiments:
+- GaNormal, GaDual, JuNormal, SiNormal
+- 3 param groups (sigma8_i2000, sigma10_i4000, sigma12_i5000)
+- 6 methods
+- 3 FC sizes
+Outputs:
+    summary_all_results.csv
+    <experiment>_summary.csv
+    <experiment>.tex  (LaTeX tables)
 """
 
 import os
-import re
-import numpy as np
 import pandas as pd
+import numpy as np
 
-BASE = "/home/woody/iwi5/iwi5325h/gaitphasecnn_middle_data_kfold_experiments"
+
+BASE = "/home/woody/iwi5/iwi5325h/gaitphasecnn_results_kfold"
 
 EXPERIMENTS = ["GaNormal", "GaDual", "JuNormal", "SiNormal"]
+
 PARAM_GROUPS = [
-    "sigma8_i2000_kfold",
-    "sigma10_i4000_kfold",
-    "sigma12_i5000_kfold",
+    "sigma8_i2000",
+    "sigma10_i4000",
+    "sigma12_i5000"
 ]
+
 METHODS = [
     "rawphase_left",
     "rawphase_right",
     "rawphase_both",
     "tfs_left",
     "tfs_right",
-    "tfs_both",
+    "tfs_both"
 ]
+
 FC_SIZES = [128, 256, 512]
 
-def extract_metrics(report_path):
-    """Extract Accuracy and AUC from report.txt"""
+
+def extract_metrics(report_path, pred_csv):
+    """Reads AUC from report.txt, and computes accuracy/sens/spec."""
     if not os.path.exists(report_path):
-        return None, None
+        return None, None, None, None
 
-    acc, auc_val = None, None
-
+    # ----- AUC from report.txt -----
     with open(report_path, "r") as f:
         text = f.read()
+    auc_line = [x for x in text.split("\n") if "AUC" in x]
+    if len(auc_line) == 0:
+        auc_val = None
+    else:
+        auc_val = float(auc_line[-1].split("=")[-1])
 
-    # Extract accuracy from classification report "accuracy" line
-    m_acc = re.search(r"accuracy\s+([\d\.]+)", text)
-    if m_acc:
-        acc = float(m_acc.group(1))
+    # ----- Metrics from test_predictions.csv -----
+    df = pd.read_csv(pred_csv)
+    y_true = df["true"]
+    y_pred = df["pred"]
 
-    # Extract AUC=0.8765
-    m_auc = re.search(r"AUC=([\d\.]+)", text)
-    if m_auc:
-        auc_val = float(m_auc.group(1))
+    acc = (y_true == y_pred).mean()
 
-    return acc, auc_val
+    # confusion matrix
+    tp = ((y_true == 1) & (y_pred == 1)).sum()
+    tn = ((y_true == 0) & (y_pred == 0)).sum()
+    fp = ((y_true == 0) & (y_pred == 1)).sum()
+    fn = ((y_true == 1) & (y_pred == 0)).sum()
+
+    sens = tp / (tp + fn) if (tp + fn) > 0 else None
+    spec = tn / (tn + fp) if (tn + fp) > 0 else None
+
+    return auc_val, acc, sens, spec
 
 
 def main():
-    records = []
+
+    all_records = []
 
     for exp in EXPERIMENTS:
+        print(f"\n========================================")
+        print(f"   🔍 Summarizing: {exp}")
+        print("========================================\n")
+
+        exp_records = []
+
         for param in PARAM_GROUPS:
             for method in METHODS:
                 for fc in FC_SIZES:
 
-                    fold_acc = []
-                    fold_auc = []
+                    results_root = os.path.join(BASE, exp, param, method, f"fc{fc}")
 
-                    method_dir = os.path.join(BASE, exp, param, method)
-                    res_dir = os.path.join(method_dir, f"results_fc{fc}")
-                    if not os.path.exists(res_dir):
+                    if not os.path.exists(results_root):
                         continue
+
+                    auc_list, acc_list, sens_list, spec_list = [], [], [], []
 
                     for fold in range(10):
-                        report_path = os.path.join(
-                            res_dir, f"fold{fold}", "report.txt"
-                        )
-                        acc, auc_val = extract_metrics(report_path)
-                        if acc is not None and auc_val is not None:
-                            fold_acc.append(acc)
-                            fold_auc.append(auc_val)
+                        fold_dir = os.path.join(results_root, f"fold{fold}")
+                        report_path = os.path.join(fold_dir, "report.txt")
+                        pred_csv = os.path.join(fold_dir, "test_predictions.csv")
 
-                    if len(fold_acc) == 0:
+                        if not os.path.exists(report_path):
+                            continue
+
+                        auc_v, acc_v, sens_v, spec_v = extract_metrics(report_path, pred_csv)
+
+                        if auc_v is not None:
+                            auc_list.append(auc_v)
+                        if acc_v is not None:
+                            acc_list.append(acc_v)
+                        if sens_v is not None:
+                            sens_list.append(sens_v)
+                        if spec_v is not None:
+                            spec_list.append(spec_v)
+
+                    # if no folds → skip
+                    if len(auc_list) == 0:
                         continue
 
-                    records.append([
-                        exp,
-                        param,
-                        method,
-                        fc,
-                        len(fold_acc),
-                        np.mean(fold_acc),
-                        np.std(fold_acc),
-                        np.mean(fold_auc),
-                        np.std(fold_auc)
-                    ])
+                    record = {
+                        "Experiment": exp,
+                        "Param": param,
+                        "Method": method,
+                        "FC": fc,
+                        "AUC_mean": np.mean(auc_list),
+                        "AUC_std": np.std(auc_list),
+                        "ACC_mean": np.mean(acc_list),
+                        "ACC_std": np.std(acc_list),
+                        "Sens_mean": np.mean(sens_list),
+                        "Spec_mean": np.mean(spec_list),
+                    }
 
-    df = pd.DataFrame(records, columns=[
-        "Experiment", "ParamGroup", "Method", "FC",
-        "NumFolds",
-        "Acc_mean", "Acc_std",
-        "AUC_mean", "AUC_std"
-    ])
+                    all_records.append(record)
+                    exp_records.append(record)
 
-    out_csv = "summary_kfold_results.csv"
-    df.to_csv(out_csv, index=False)
-    print("\n=====================================")
-    print("  ✅ Summary saved:", out_csv)
-    print("=====================================\n")
+        # save each experiment summary
+        df_exp = pd.DataFrame(exp_records)
+        df_exp.to_csv(f"{exp}_summary.csv", index=False)
+
+        # Export LaTeX also
+        with open(f"{exp}_table.tex", "w") as f:
+            f.write(df_exp.to_latex(index=False, float_format="%.3f"))
+
+        print(f"✔ Saved: {exp}_summary.csv")
+        print(f"✔ Saved LaTeX: {exp}_table.tex\n")
+
+    # Save global summary
+    df_all = pd.DataFrame(all_records)
+    df_all.to_csv("summary_all_results.csv", index=False)
+    print("🎉 ALL DONE → summary_all_results.csv generated!\n")
 
 
 if __name__ == "__main__":
