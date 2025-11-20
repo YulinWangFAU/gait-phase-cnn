@@ -42,16 +42,16 @@ class HeatmapDataset(Dataset):
     def __init__(self, csv_path, transform=None):
         df = pd.read_csv(csv_path)
 
-        # 1. Base directory = the method folder (tfs_both/rawphase_xxx)
-        #    train.csv is in .../tfs_both/folds/fold0/train.csv
-        #    so we go two levels up:
-        base_dir = os.path.dirname(os.path.dirname(csv_path))  # remove /fold0
-        base_dir = os.path.dirname(base_dir)  # remove /folds
+        # path column exists
+        self.paths = df["path"].tolist()
 
-        # 2. Image files live in base_dir (png filenames only)
-        self.paths = [os.path.join(base_dir, f) for f in df["png"].tolist()]
+        # convert group → label
+        if "label" in df.columns:
+            self.labels = df["label"].astype(int).tolist()
+        else:
+            # group column: Co / Pt
+            self.labels = df["group"].apply(lambda g: 0 if g=="Co" else 1).tolist()
 
-        self.labels = df["label"].tolist()
         self.transform = transform
 
     def __len__(self):
@@ -60,6 +60,7 @@ class HeatmapDataset(Dataset):
     def __getitem__(self, idx):
         img = Image.open(self.paths[idx]).convert("L")
         return self.transform(img), int(self.labels[idx])
+
 
 
 # ---------------------------------------------------------
