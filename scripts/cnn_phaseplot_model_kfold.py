@@ -148,7 +148,7 @@ def train_fold(train_csv, val_csv, test_csv, out_dir,
     opt = optim.Adam(model.parameters(), lr=lr)
     sched = optim.lr_scheduler.ReduceLROnPlateau(opt, 'min', patience=3)
 
-    best_acc = 0
+    best_acc = -1
     patience_counter = 0
 
     train_acc_hist, val_acc_hist = [], []
