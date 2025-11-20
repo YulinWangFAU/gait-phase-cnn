@@ -125,8 +125,19 @@ def train_fold(train_csv, val_csv, test_csv, out_dir,
     # balanced mode
     # -----------------------------------------------------
     if mode == "balanced":
-        labels = pd.read_csv(train_csv)["label"].values
-        cls_weights = compute_class_weight("balanced", classes=np.array([0,1]), y=labels)
+        df_train = pd.read_csv(train_csv)
+
+        # ensure label column exists
+        if "label" in df_train.columns:
+            labels = df_train["label"].astype(int).values
+        else:
+            labels = df_train["group"].apply(lambda g: 0 if g == "Co" else 1).astype(int).values
+
+        cls_weights = compute_class_weight(
+            "balanced",
+            classes=np.array([0, 1]),
+            y=labels
+        )
         cls_weights = torch.tensor(cls_weights, dtype=torch.float, device=DEVICE)
 
         sample_weights = np.array([cls_weights[l].item() for l in labels])
