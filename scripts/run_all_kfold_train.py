@@ -43,11 +43,28 @@ METHODS = [
 FC_SIZES = [128, 256, 512]
 
 
-def run_cmd(cmd):
+def run_cmd(cmd, out_dir):
     print("\n============================================")
     print("EXEC:", " ".join(cmd))
     print("============================================\n")
-    subprocess.run(cmd)
+
+    log_file = os.path.join(out_dir, "stdout_stderr.log")
+
+    p = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True
+    )
+
+    with open(log_file, "w") as f:
+        for line in p.stdout:
+            print(line, end="", flush=True)
+            f.write(line)
+
+    p.wait()
+
+
 
 
 def main():
