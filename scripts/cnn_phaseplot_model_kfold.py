@@ -135,7 +135,7 @@ def train_fold(train_csv, val_csv, test_csv, out_dir,
 
         cls_weights = compute_class_weight("balanced", classes=np.array([0, 1]), y=labels)
 
-        MAX_W = 3.0
+        MAX_W = 2.0
         cls_weights = np.clip(cls_weights, 1.0 / MAX_W, MAX_W)
         cls_weights = torch.tensor(cls_weights, dtype=torch.float, device=DEVICE)
 
