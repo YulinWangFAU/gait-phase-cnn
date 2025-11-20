@@ -128,7 +128,8 @@ def main():
                             "--fc_dim", str(fc_dim)
                         ]
 
-                        run_cmd(cmd)
+                        run_cmd(cmd, out_dir)
+
 
 
 if __name__ == "__main__":
