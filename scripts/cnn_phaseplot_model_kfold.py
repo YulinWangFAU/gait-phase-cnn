@@ -125,26 +125,27 @@ def train_fold(train_csv, val_csv, test_csv, out_dir,
     # balanced mode
     # -----------------------------------------------------
     if mode == "balanced":
-        df_train = pd.read_csv(train_csv)
+        train_df = pd.read_csv(train_csv)
 
-        # ensure label column exists
-        if "label" in df_train.columns:
-            labels = df_train["label"].astype(int).values
+        # get labels
+        if "label" in train_df.columns:
+            labels = train_df["label"].astype(int).values
         else:
-            labels = df_train["group"].apply(lambda g: 0 if g == "Co" else 1).astype(int).values
+            labels = train_df["group"].apply(lambda g: 0 if g == "Co" else 1).values
 
-        cls_weights = compute_class_weight(
-            "balanced",
-            classes=np.array([0, 1]),
-            y=labels
-        )
+        cls_weights = compute_class_weight("balanced", classes=np.array([0, 1]), y=labels)
+
+        MAX_W = 3.0
+        cls_weights = np.clip(cls_weights, 1.0 / MAX_W, MAX_W)
         cls_weights = torch.tensor(cls_weights, dtype=torch.float, device=DEVICE)
 
-        sample_weights = np.array([cls_weights[l].item() for l in labels])
-        sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
+        # ❌ remove sampler (important!)
+        train_loader = DataLoader(train_ds, batch_size=batch, shuffle=True)
 
-        train_loader = DataLoader(train_ds, batch_size=batch, sampler=sampler)
+        # ✔ only weighted loss
         criterion = nn.CrossEntropyLoss(weight=cls_weights)
+
+
 
     else:
         train_loader = DataLoader(train_ds, batch_size=batch, shuffle=True)
