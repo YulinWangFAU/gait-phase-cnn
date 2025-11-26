@@ -18,7 +18,7 @@ import pandas as pd
 import numpy as np
 
 
-BASE = "/home/woody/iwi5/iwi5325h/gaitphasecnn_results_kfold"
+BASE = "/Users/wangyulin/Time Series/gaitphasecnn_results_kfold/"
 
 EXPERIMENTS = ["GaNormal", "GaDual", "JuNormal", "SiNormal"]
 

@@ -167,6 +167,13 @@ def main():
                     os.makedirs(subdir, exist_ok=True)
 
                     for fname in txt_files:
+                        # ========================================================
+                        # ONLY FOR Ju: keep _01 trials, skip _02/_03
+                        # ========================================================
+                        if exp_name == "JuNormal":
+                            if not fname.endswith("_01.txt"):
+                                continue
+                        # ========================================================
 
                         subject = fname[:6]        # e.g., GaCo01
                         group = "Co" if "Co" in fname else "Pt"
