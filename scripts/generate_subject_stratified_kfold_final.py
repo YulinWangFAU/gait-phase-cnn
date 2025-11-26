@@ -37,6 +37,12 @@ KF = 10  # test folds
 
 def generate_splits():
     for exp in EXPS:
+        # ==================================================
+        # ONLY RUN JuNormal
+        # ==================================================
+        if exp != "JuNormal":
+            continue
+        # ==================================================
         exp_dir = os.path.join(BASE, exp)
 
         for sigma in SIGMAS:
