@@ -8,7 +8,7 @@ Summarizes 10-fold results for all experiments:
 - 6 methods
 - 3 FC sizes
 Outputs:
-    summary_all_results.csv
+    summary_all_results_Juold.csv
     <experiment>_summary.csv
     <experiment>.tex  (LaTeX tables)
 """
@@ -18,7 +18,7 @@ import pandas as pd
 import numpy as np
 
 
-BASE = "/Users/wangyulin/Time Series/gaitphasecnn_results_kfold/"
+BASE = "/Users/wangyulin/Time Series/gaitphasecnn_results_kfold"
 
 EXPERIMENTS = ["GaNormal", "GaDual", "JuNormal", "SiNormal"]
 
