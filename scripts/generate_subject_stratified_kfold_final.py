@@ -40,8 +40,8 @@ def generate_splits():
         # ==================================================
         # ONLY RUN JuNormal
         # ==================================================
-        if exp != "JuNormal":
-            continue
+        #if exp != "JuNormal":
+        #    continue
         # ==================================================
         exp_dir = os.path.join(BASE, exp)
 

@@ -23,8 +23,8 @@ SCRIPT = "/home/hpc/iwi5/iwi5325h/gait-phase-cnn/scripts/cnn_phaseplot_model_kfo
 
 os.makedirs(OUTPUT_BASE, exist_ok=True)
 
-EXPERIMENTS = ["GaNormal", "GaDual", "JuNormal", "SiNormal"]
-
+#EXPERIMENTS = ["GaNormal", "GaDual", "JuNormal", "SiNormal"]
+EXPERIMENTS = ["JuNormal"]
 PARAM_GROUPS = [
     ("sigma8_i2000_kfold", 8, 2000),
     ("sigma10_i4000_kfold", 10, 4000),
