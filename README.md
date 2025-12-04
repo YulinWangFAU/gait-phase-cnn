@@ -1,47 +1,25 @@
-# CNN-based Gait Phase Heatmap Classification for Parkinson’s Disease
+# CNN-Based Classification of Parkinson’s Disease from Gait Phase-Plot Heatmaps
 
-## Overview
-This project aims to classify Parkinson's Disease (PD) vs. Healthy Controls (HC) using gait signals transformed into phase heatmaps and a CNN model.
+This repository implements a complete pipeline for classifying Parkinson’s disease (PD) vs. healthy controls using vertical ground reaction force (VGRF) gait signals converted into phase-plot heatmaps and a lightweight CNN model.
 
-## Dataset Description
-- Source: GaitPDB (PhysioNet)
-- Each file: 16-channel vertical ground reaction force (VGRF) sampled at 100Hz
-- Format: .txt files
+## Pipeline Overview
+1. Generate phase-plot heatmaps  
+2. Create subject-stratified K-fold splits  
+3. Train CNN models across all folds  
+4. Save metrics, ROC curves, and confusion matrices  
 
-## Phase Plot Method
-- Threshold and filter gait signals
-- Compute Hilbert transform → TFS → Interpolated phase trajectory
-- Convert into 2D heatmaps via histogram + Gaussian filter
-
-## CNN Architecture
-See `models/cnn.py`. A simple 3-layer CNN used for binary classification.
+## Key Scripts
+- `scripts/generate_heatmaps_all_experiments_kfold.py`  
+  → Generate heatmaps for all experiments and preprocessing settings  
+- `scripts/generate_subject_stratified_kfold_final.py`  
+  → Create subject-wise K-fold splits  
+- `scripts/cnn_phaseplot_model_kfold.py`  
+  → Train the CNN for one experiment  
+- `scripts/run_all_kfold_train.py`  
+  → Run full K-fold training for all configurations  
 
 ## How to Run
-
-1. Generate heatmaps:
 ```bash
-python scripts/generate_heatmaps.py
-```
-
-2. Train CNN:
-```bash
-python scripts/train.py
-```
-
-3. Evaluate:
-```bash
-python scripts/evaluate.py
-```
-
-4. Grad-CAM visualization:
-```bash
-python scripts/gradcam_visualize.py
-```
-
-## Results & Evaluation
-- Metrics: Accuracy, Confusion Matrix, ROC-AUC
-- Grad-CAM helps visualize model attention on heatmaps.
-
-## Author
-Yulin Wang  
-FAU Erlangen-Nürnberg, 2025
+python scripts/generate_heatmaps_all_experiments_kfold.py
+python scripts/generate_subject_stratified_kfold_final.py
+python scripts/run_all_kfold_train.py
